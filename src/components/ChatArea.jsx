@@ -4,18 +4,24 @@ import { useChatStore } from '../stores/chatStore'
 import MessageBubble from './MessageBubble'
 import MessageInput from './MessageInput'
 import TypingIndicator from './TypingIndicator'
-import { MessageCircle, Users } from 'lucide-react'
+import { MessageCircle, Users, RefreshCw, Settings, Trash2 } from 'lucide-react'
+import RoomMembersModal from './RoomMembersModal'
+import DeleteRoomModal from './DeleteRoomModal'
 
 const ChatArea = () => {
-  const { 
-    currentRoom, 
-    messages, 
-    fetchMessages, 
+  const {
+    currentRoom,
+    messages,
+    fetchMessages,
     sendMessage,
-    typingUsers 
+    typingUsers,
+    refreshMessages,
+    markRoomAsRead
   } = useChatStore()
   
   const [isLoading, setIsLoading] = useState(false)
+  const [showRoomMembers, setShowRoomMembers] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
 
@@ -23,8 +29,13 @@ const ChatArea = () => {
     if (currentRoom) {
       setIsLoading(true)
       fetchMessages(currentRoom.id).finally(() => setIsLoading(false))
+      
+      // Mark room as read when messages are loaded
+      if (currentRoom.unread_count > 0) {
+        markRoomAsRead(currentRoom.id)
+      }
     }
-  }, [currentRoom, fetchMessages])
+  }, [currentRoom?.id]) // Only depend on room ID, not the function
 
   useEffect(() => {
     scrollToBottom()
@@ -33,6 +44,8 @@ const ChatArea = () => {
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
+
+
 
   if (!currentRoom) {
     return (
@@ -61,22 +74,47 @@ const ChatArea = () => {
     <div className="flex-1 flex flex-col bg-white dark:bg-gray-800">
       {/* Room header */}
       <div className="border-b border-gray-200 dark:border-gray-700 px-6 py-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-primary-100 dark:bg-primary-900 rounded-lg flex items-center justify-center">
-            {currentRoom.type === 'group' ? (
-              <Users className="w-5 h-5 text-primary-600 dark:text-primary-400" />
-            ) : (
-              <MessageCircle className="w-5 h-5 text-primary-600 dark:text-primary-400" />
-            )}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-primary-100 dark:bg-primary-900 rounded-lg flex items-center justify-center">
+              {currentRoom.type === 'group' ? (
+                <Users className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+              ) : (
+                <MessageCircle className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+              )}
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                {currentRoom.name}
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {currentRoom.member_count} member{currentRoom.member_count !== 1 ? 's' : ''}
+                {currentRoom.description && ` • ${currentRoom.description}`}
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              {currentRoom.name}
-            </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {currentRoom.member_count} member{currentRoom.member_count !== 1 ? 's' : ''}
-              {currentRoom.description && ` • ${currentRoom.description}`}
-            </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowRoomMembers(true)}
+              className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+              title="Manage room members"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+                  <button
+                    onClick={() => refreshMessages(currentRoom.id)}
+                    className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                    title="Refresh messages"
+                  >
+                    <RefreshCw className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteModal(true)}
+                    className="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200 transition-colors"
+                    title="Delete room"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
           </div>
         </div>
       </div>
@@ -134,6 +172,20 @@ const ChatArea = () => {
         {/* Message input */}
         <MessageInput roomId={currentRoom.id} />
       </div>
+
+
+      {/* Room members modal */}
+        <RoomMembersModal
+          isOpen={showRoomMembers}
+          onClose={() => setShowRoomMembers(false)}
+          roomId={currentRoom.id}
+        />
+        <DeleteRoomModal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          room={currentRoom}
+        />
+        
     </div>
   )
 }

@@ -14,6 +14,8 @@ const MessageInput = ({ roomId }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    e.stopPropagation() // Prevent event bubbling
+    
     if (!message.trim() || !roomId) return
 
     const content = message.trim()
@@ -26,7 +28,13 @@ const MessageInput = ({ roomId }) => {
       setIsTyping(false)
     }
 
-    await sendMessage(content)
+    try {
+      console.log('Sending message:', content)
+      const result = await sendMessage(content)
+      console.log('Message send result:', result)
+    } catch (error) {
+      console.error('Failed to send message:', error)
+    }
   }
 
   const handleInputChange = (e) => {
@@ -101,6 +109,12 @@ const MessageInput = ({ roomId }) => {
           type="submit"
           disabled={!message.trim()}
           className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          onClick={(e) => {
+            if (!message.trim()) {
+              e.preventDefault()
+              e.stopPropagation()
+            }
+          }}
         >
           <Send className="w-5 h-5" />
         </button>

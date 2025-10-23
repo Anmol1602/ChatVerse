@@ -3,29 +3,60 @@ import { motion } from 'framer-motion'
 import { useChatStore } from '../stores/chatStore'
 import { X, Search, User, Plus } from 'lucide-react'
 
-const UserSearchModal = ({ onClose }) => {
+const UserSearchModal = ({ onClose, onUserSelect }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
-  const { users, searchUsers, createRoom } = useChatStore()
+  const { users, searchUsers, createRoom, createDM, clearUsers } = useChatStore()
+  
+  console.log('UserSearchModal render - users:', users.length, users)
 
   useEffect(() => {
-    if (searchQuery.trim().length >= 2) {
-      setIsSearching(true)
-      searchUsers(searchQuery).finally(() => setIsSearching(false))
+    console.log('UserSearchModal useEffect triggered, searchQuery:', searchQuery)
+    
+    // Clear previous timeout
+    const timeoutId = setTimeout(() => {
+      if (searchQuery.trim().length >= 2) {
+        console.log('Debounced search triggered for query:', searchQuery)
+        setIsSearching(true)
+        searchUsers(searchQuery).finally(() => setIsSearching(false))
+      } else {
+        // Clear users when query is too short
+        console.log('Query too short, clearing users')
+        clearUsers()
+      }
+    }, 500) // Increased to 500ms debounce
+
+    return () => {
+      console.log('Clearing timeout for query:', searchQuery)
+      clearTimeout(timeoutId)
     }
-  }, [searchQuery, searchUsers])
+  }, [searchQuery]) // Remove searchUsers dependency to prevent infinite loops
 
   const handleCreateDirectChat = async (user) => {
-    const result = await createRoom(
-      `Chat with ${user.name}`,
-      '',
-      'direct',
-      [user.id]
-    )
+    console.log('handleCreateDirectChat called with user:', user)
+    console.log('onUserSelect provided:', !!onUserSelect)
     
-    if (result.success) {
+    if (onUserSelect) {
+      // If onUserSelect is provided, use it (for adding to room)
+      console.log('Using onUserSelect for user:', user.id)
+      onUserSelect(user.id)
       onClose()
+    } else {
+      // Otherwise, create a direct message
+      console.log('Creating DM for user:', user.id)
+      const result = await createDM(user.id)
+      console.log('DM creation result:', result)
+      
+      if (result.success) {
+        onClose()
+      }
     }
+  }
+
+  const handleClose = () => {
+    console.log('UserSearchModal closing, clearing users')
+    clearUsers() // Clear users when modal closes
+    onClose()
   }
 
   return (
@@ -35,7 +66,7 @@ const UserSearchModal = ({ onClose }) => {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="absolute inset-0 bg-black bg-opacity-50"
-        onClick={onClose}
+        onClick={handleClose}
       />
       
       <motion.div
@@ -50,7 +81,7 @@ const UserSearchModal = ({ onClose }) => {
               Find Users
             </h2>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
             >
               <X className="w-5 h-5" />
@@ -92,6 +123,7 @@ const UserSearchModal = ({ onClose }) => {
             </div>
           ) : (
             <div className="p-4 space-y-2">
+              {console.log('Rendering users:', users.length, users)}
               {users.map((user) => (
                 <motion.div
                   key={user.id}
@@ -128,7 +160,12 @@ const UserSearchModal = ({ onClose }) => {
                   </div>
 
                   <button
-                    onClick={() => handleCreateDirectChat(user)}
+                    onClick={(e) => {
+                      console.log('Plus button clicked for user:', user)
+                      e.preventDefault()
+                      e.stopPropagation()
+                      handleCreateDirectChat(user)
+                    }}
                     className="p-2 text-primary-600 hover:text-primary-700 hover:bg-primary-50 dark:hover:bg-primary-900 rounded-lg transition-colors"
                     title="Start direct chat"
                   >

@@ -1,13 +1,9 @@
 import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
 
-// This is a placeholder for WebSocket functionality
-// In a real implementation, you would use a service like Pusher, Ably, or Supabase Realtime
-// for WebSocket connections since Netlify Functions are stateless
-
 export async function handler(event, context) {
-  // Configure neon with the database URL
   const sql = neon(process.env.NETLIFY_DATABASE_URL);
+  
   // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return {
@@ -54,67 +50,80 @@ export async function handler(event, context) {
 
     const userId = decoded.id;
 
-    if (event.httpMethod === 'GET') {
-      // Return WebSocket connection info
-      // In production, you would connect to a real WebSocket service
-      return {
-        statusCode: 200,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ 
-          message: 'WebSocket connection established',
-          userId,
-          // In production, return actual WebSocket URL
-          wsUrl: process.env.VITE_WS_URL || 'wss://your-websocket-service.com'
-        })
-      };
-    }
+    // Get all rooms
+    const allRooms = await sql`
+      SELECT 
+        r.id,
+        r.name,
+        r.description,
+        r.type,
+        r.created_by,
+        r.created_at,
+        r.updated_at
+      FROM rooms r
+      ORDER BY r.created_at DESC
+    `;
 
-    if (event.httpMethod === 'POST') {
-      // Handle WebSocket events (typing, presence, etc.)
-      const { type, payload } = JSON.parse(event.body || '{}');
+    // Get all room members
+    const allRoomMembers = await sql`
+      SELECT 
+        rm.room_id,
+        rm.user_id,
+        rm.joined_at,
+        u.name as user_name,
+        u.email as user_email
+      FROM room_members rm
+      JOIN users u ON rm.user_id = u.id
+      ORDER BY rm.room_id, rm.joined_at
+    `;
 
-      // Update user online status
-      if (type === 'ping') {
-        await client.query(`
-          UPDATE users SET online = true, last_seen = NOW() WHERE id = $1
-        `, [userId]);
-      }
-
-      return {
-        statusCode: 200,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ 
-          message: 'Event processed',
-          type,
-          payload 
-        })
-      };
-    }
+    // Get user's specific rooms
+    const userRooms = await sql`
+      SELECT 
+        r.id,
+        r.name,
+        r.description,
+        r.type,
+        r.created_by,
+        r.created_at,
+        r.updated_at
+      FROM rooms r
+      WHERE r.id IN (
+        SELECT room_id FROM room_members WHERE user_id = ${userId}
+      )
+      ORDER BY r.created_at DESC
+    `;
 
     return {
-      statusCode: 405,
+      statusCode: 200,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ error: 'Method not allowed' })
+      body: JSON.stringify({
+        userId,
+        allRooms,
+        allRoomMembers,
+        userRooms,
+        totalRooms: allRooms.length,
+        totalMembers: allRoomMembers.length,
+        userRoomCount: userRooms.length
+      })
     };
 
   } catch (error) {
-    console.error('WebSocket error:', error);
+    console.error('Debug rooms error:', error);
     return {
       statusCode: 500,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ error: 'Internal server error' })
+      body: JSON.stringify({ 
+        error: 'Debug failed', 
+        details: error.message,
+        stack: error.stack 
+      })
     };
   }
 }

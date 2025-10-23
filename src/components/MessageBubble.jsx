@@ -1,8 +1,25 @@
 import { motion } from 'framer-motion'
 import { formatTime } from '../utils/formatTime'
-import { User } from 'lucide-react'
+import { User, Trash2 } from 'lucide-react'
+import { useChatStore } from '../stores/chatStore'
+import { useState } from 'react'
 
 const MessageBubble = ({ message, isOwn, showAvatar = false, showTime = true }) => {
+  const { deleteMessage } = useChatStore()
+  const [showDelete, setShowDelete] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const handleDelete = async () => {
+    if (window.confirm('Are you sure you want to delete this message?')) {
+      setIsDeleting(true)
+      const result = await deleteMessage(message.id)
+      if (!result.success) {
+        alert(result.error || 'Failed to delete message')
+      }
+      setIsDeleting(false)
+    }
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -32,15 +49,33 @@ const MessageBubble = ({ message, isOwn, showAvatar = false, showTime = true }) 
         )}
         
         <div
-          className={`px-4 py-2 rounded-lg ${
+          className={`px-4 py-2 rounded-lg relative group ${
             isOwn
               ? 'bg-primary-600 text-white rounded-br-sm'
               : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-sm'
           }`}
+          onMouseEnter={() => setShowDelete(true)}
+          onMouseLeave={() => setShowDelete(false)}
         >
           <p className="text-sm break-words whitespace-pre-wrap">
             {message.content}
           </p>
+          
+          {/* Delete button - only show for own messages */}
+          {isOwn && showDelete && (
+            <button
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+              title="Delete message"
+            >
+              {isDeleting ? (
+                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Trash2 className="w-3 h-3" />
+              )}
+            </button>
+          )}
         </div>
         
         {showTime && (

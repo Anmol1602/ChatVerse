@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { useAuthStore } from '../stores/authStore'
 import { useChatStore } from '../stores/chatStore'
@@ -9,12 +9,29 @@ import ThemeToggle from '../components/ThemeToggle'
 
 const Chat = () => {
   const { user, logout } = useAuthStore()
-  const { fetchRooms, loading } = useChatStore()
+  const { fetchRooms, loading, stopMessagePolling, startRoomsPolling, stopRoomsPolling } = useChatStore()
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const hasFetchedRooms = useRef(false)
 
   useEffect(() => {
-    fetchRooms()
-  }, [fetchRooms])
+    console.log('Chat useEffect triggered, user:', user?.id, 'hasFetchedRooms:', hasFetchedRooms.current)
+    // Only fetch rooms once per user
+    if (!hasFetchedRooms.current && user) {
+      hasFetchedRooms.current = true
+      console.log('Fetching rooms for user:', user.id)
+      fetchRooms()
+      // Re-enable rooms polling with smart debouncing to prevent page reloads
+      startRoomsPolling()
+    }
+  }, [user?.id]) // Only depend on user ID, not the entire user object
+
+  // Cleanup polling when component unmounts
+  useEffect(() => {
+    return () => {
+      stopMessagePolling()
+      stopRoomsPolling()
+    }
+  }, []) // Remove function dependencies to prevent infinite loops
 
   if (loading) {
     return <LoadingSpinner size="lg" className="min-h-screen" />

@@ -5,9 +5,26 @@
 [build.environment]
   NODE_VERSION = "18"
 
+# API redirects - must come first
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
+  status = 200
+
+# Client-side routing redirects
+[[redirects]]
+  from = "/chat"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/login"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/register"
+  to = "/index.html"
   status = 200
 
 [functions]

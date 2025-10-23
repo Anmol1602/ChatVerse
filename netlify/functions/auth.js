@@ -1,4 +1,4 @@
-import { client } from '@netlify/database';
+import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import cors from 'cors';
@@ -9,6 +9,8 @@ const corsHandler = cors({
 });
 
 export async function handler(event, context) {
+  // Configure neon with the database URL
+  const sql = neon(process.env.NETLIFY_DATABASE_URL);
   // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return {
@@ -30,9 +32,7 @@ export async function handler(event, context) {
       // Register new user
       const hashedPassword = await bcrypt.hash(password, 12);
       
-      const { data: existingUser } = await client.query(`
-        SELECT id FROM users WHERE email = $1
-      `, [email]);
+      const existingUser = await sql`SELECT id FROM users WHERE email = ${email}`;
 
       if (existingUser && existingUser.length > 0) {
         return {
@@ -45,11 +45,11 @@ export async function handler(event, context) {
         };
       }
 
-      const { data: newUser } = await client.query(`
+      const newUser = await sql`
         INSERT INTO users (email, password, name, avatar, online, created_at)
-        VALUES ($1, $2, $3, $4, true, NOW())
+        VALUES (${email}, ${hashedPassword}, ${name}, ${avatar || ''}, true, NOW())
         RETURNING id, email, name, avatar, online
-      `, [email, hashedPassword, name, avatar || '']);
+      `;
 
       const token = jwt.sign(
         { id: newUser[0].id, email: newUser[0].email },
@@ -73,9 +73,7 @@ export async function handler(event, context) {
 
     if (action === 'login') {
       // Login existing user
-      const { data: user } = await client.query(`
-        SELECT id, email, password, name, avatar, online FROM users WHERE email = $1
-      `, [email]);
+      const user = await sql`SELECT id, email, password, name, avatar, online FROM users WHERE email = ${email}`;
 
       if (!user || user.length === 0) {
         return {
@@ -101,9 +99,7 @@ export async function handler(event, context) {
       }
 
       // Update user online status
-      await client.query(`
-        UPDATE users SET online = true, last_seen = NOW() WHERE id = $1
-      `, [user[0].id]);
+      await sql`UPDATE users SET online = true, last_seen = NOW() WHERE id = ${user[0].id}`;
 
       const token = jwt.sign(
         { id: user[0].id, email: user[0].email },
@@ -132,9 +128,7 @@ export async function handler(event, context) {
       if (token) {
         try {
           const decoded = jwt.verify(token, process.env.JWT_SECRET);
-          await client.query(`
-            UPDATE users SET online = false, last_seen = NOW() WHERE id = $1
-          `, [decoded.id]);
+          await sql`UPDATE users SET online = false, last_seen = NOW() WHERE id = ${decoded.id}`;
         } catch (error) {
           // Token invalid, continue with logout
         }
