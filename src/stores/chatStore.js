@@ -319,12 +319,12 @@ export const useChatStore = create((set, get) => ({
   // Remove member from room
   removeMember: async (roomId, memberId) => {
     try {
-      const response = await api.delete('/remove-member', {
+      const response = await api.delete('/room-members', {
         roomId,
-        memberId
+        userId: memberId
       })
       
-      if (response.data.success) {
+      if (response.data.message) {
         console.log('Member removed successfully')
         // Refresh rooms to update member count
         get().fetchRooms()
@@ -340,11 +340,11 @@ export const useChatStore = create((set, get) => ({
   // Delete message
   deleteMessage: async (messageId) => {
     try {
-      const response = await api.delete('/delete-message', {
+      const response = await api.delete('/messages', {
         messageId
       })
       
-      if (response.data.success) {
+      if (response.data.message) {
         console.log('Message deleted successfully')
         // Remove message from local state
         set(state => ({

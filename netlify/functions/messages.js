@@ -197,6 +197,68 @@ export async function handler(event, context) {
       };
     }
 
+    if (event.httpMethod === 'DELETE') {
+      // Delete a message
+      const { messageId } = JSON.parse(event.body || '{}');
+
+      if (!messageId) {
+        return {
+          statusCode: 400,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ error: 'Message ID is required' })
+        };
+      }
+
+      // Check if user is the author of the message
+      const message = await sql`
+        SELECT user_id, room_id FROM messages WHERE id = ${messageId}
+      `;
+
+      if (!message || message.length === 0) {
+        return {
+          statusCode: 404,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ error: 'Message not found' })
+        };
+      }
+
+      // Check if user is the author or admin of the room
+      const isAuthor = message[0].user_id === userId;
+      const isAdmin = await sql`
+        SELECT 1 FROM room_members 
+        WHERE room_id = ${message[0].room_id} AND user_id = ${userId} AND role = 'admin'
+      `;
+
+      if (!isAuthor && (!isAdmin || isAdmin.length === 0)) {
+        return {
+          statusCode: 403,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ error: 'You can only delete your own messages or be an admin' })
+        };
+      }
+
+      // Delete the message
+      await sql`DELETE FROM messages WHERE id = ${messageId}`;
+
+      return {
+        statusCode: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ message: 'Message deleted successfully' })
+      };
+    }
+
     return {
       statusCode: 405,
       headers: {
