@@ -18,7 +18,8 @@ const ChatArea = () => {
     sendMessage,
     typingUsers,
     refreshMessages,
-    markRoomAsRead
+    markRoomAsRead,
+    refreshReactionsOnDemand
   } = useChatStore()
   
   const [isLoading, setIsLoading] = useState(false)
@@ -117,6 +118,13 @@ const ChatArea = () => {
               title="Refresh messages"
             >
               <RefreshCw className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => refreshReactionsOnDemand(currentRoom.id)}
+              className="p-2 text-yellow-500 hover:text-yellow-700 dark:text-yellow-400 dark:hover:text-yellow-200 transition-colors"
+              title="Refresh reactions"
+            >
+              😃
             </button>
             <button
               onClick={() => setShowDeleteModal(true)}

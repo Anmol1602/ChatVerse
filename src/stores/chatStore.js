@@ -153,10 +153,10 @@ export const useChatStore = create((set, get) => ({
       // Re-enable polling for real-time message updates
       const interval = setInterval(() => {
         get().pollForNewMessages(room.id)
-      }, 15000) // Increased to 15 seconds to prevent page reloads
+      }, 30000) // Increased to 30 seconds to prevent UI disruption
       set({ messagePollingInterval: interval })
-      // Start reaction polling for real-time sync
-      get().startReactionPolling(room.id)
+      // Start reaction polling for real-time sync (disabled to prevent UI disruption)
+      // get().startReactionPolling(room.id)
       console.log('Room switching completed for:', room.name)
     }
   },
@@ -198,8 +198,8 @@ export const useChatStore = create((set, get) => ({
           messages: [...state.messages, ...messagesWithReactions]
         }))
         
-        // Also refresh reactions for existing messages to sync with other users
-        get().refreshReactions(roomId)
+        // Reactions will be refreshed on-demand when users interact
+        // get().refreshReactions(roomId)
         
         // Update unread counts locally instead of full room refresh
         console.log('Updating unread counts locally for new messages...')
@@ -226,7 +226,7 @@ export const useChatStore = create((set, get) => ({
       console.log('Add reaction response:', response.data)
       
       if (response.data.success) {
-        // Update local state
+        // Update local state immediately for better UX
         const { messages } = get()
         const updatedMessages = messages.map(msg => {
           if (msg.id === messageId) {
@@ -260,6 +260,15 @@ export const useChatStore = create((set, get) => ({
         })
         
         set({ messages: updatedMessages })
+        
+        // Trigger a background refresh for other users (without UI disruption)
+        setTimeout(() => {
+          const { currentRoom } = get()
+          if (currentRoom) {
+            get().refreshReactions(currentRoom.id)
+          }
+        }, 2000) // Refresh after 2 seconds for other users
+        
         return { success: true, action: 'added' }
       }
     } catch (error) {
@@ -302,6 +311,15 @@ export const useChatStore = create((set, get) => ({
         })
         
         set({ messages: updatedMessages })
+        
+        // Trigger a background refresh for other users (without UI disruption)
+        setTimeout(() => {
+          const { currentRoom } = get()
+          if (currentRoom) {
+            get().refreshReactions(currentRoom.id)
+          }
+        }, 2000) // Refresh after 2 seconds for other users
+        
         return { success: true, action: 'removed' }
       }
     } catch (error) {
@@ -388,6 +406,12 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  // Manual refresh function for reactions (called on user interaction)
+  refreshReactionsOnDemand: async (roomId) => {
+    console.log('Manual reaction refresh requested for room:', roomId)
+    await get().refreshReactions(roomId)
+  },
+
   startReactionPolling: (roomId) => {
     const { reactionPollingInterval } = get()
     
@@ -403,7 +427,7 @@ export const useChatStore = create((set, get) => ({
         console.log('Polling for reaction updates...')
         get().refreshReactions(roomId)
       }
-    }, 10000) // Poll every 10 seconds for reactions
+    }, 30000) // Poll every 30 seconds for reactions (reduced frequency)
     
     set({ reactionPollingInterval: interval })
   },
@@ -852,10 +876,10 @@ export const useChatStore = create((set, get) => ({
       if (!lastRoomsFetch || (now - lastRoomsFetch) > 40000) { // 40 second minimum between fetches
         get().fetchRooms()
         set({ lastRoomsFetch: now })
-        // Also refresh reactions for real-time sync
-        if (currentRoom) {
-          get().refreshReactions(currentRoom.id)
-        }
+        // Reactions will be refreshed on-demand when users interact
+        // if (currentRoom) {
+        //   get().refreshReactions(currentRoom.id)
+        // }
       } else {
         console.log('Skipping rooms fetch - too soon since last fetch')
       }
