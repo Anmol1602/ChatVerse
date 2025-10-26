@@ -37,12 +37,14 @@ export async function handler(event, context) {
     `;
 
     // Create indexes for better performance
-    await sql`
-      CREATE INDEX IF NOT EXISTS idx_files_uploaded_by ON files (uploaded_by);
-      CREATE INDEX IF NOT EXISTS idx_files_room_id ON files (room_id);
-      CREATE INDEX IF NOT EXISTS idx_files_created_at ON files (created_at);
-      CREATE INDEX IF NOT EXISTS idx_messages_file_id ON messages (file_id);
-    `;
+    try {
+      await sql`CREATE INDEX IF NOT EXISTS idx_files_uploaded_by ON files (uploaded_by)`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_files_room_id ON files (room_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_files_created_at ON files (created_at)`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_messages_file_id ON messages (file_id)`;
+    } catch (error) {
+      console.log('Some indexes might already exist:', error.message);
+    }
 
     console.log('Simplified files table migration completed successfully.');
 

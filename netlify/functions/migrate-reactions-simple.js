@@ -30,12 +30,14 @@ export async function handler(event, context) {
     `;
 
     // Create indexes for better performance
-    await sql`
-      CREATE INDEX IF NOT EXISTS idx_message_reactions_message_id ON message_reactions (message_id);
-      CREATE INDEX IF NOT EXISTS idx_message_reactions_user_id ON message_reactions (user_id);
-      CREATE INDEX IF NOT EXISTS idx_message_reactions_emoji ON message_reactions (emoji);
-      CREATE INDEX IF NOT EXISTS idx_message_reactions_created_at ON message_reactions (created_at);
-    `;
+    try {
+      await sql`CREATE INDEX IF NOT EXISTS idx_message_reactions_message_id ON message_reactions (message_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_message_reactions_user_id ON message_reactions (user_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_message_reactions_emoji ON message_reactions (emoji)`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_message_reactions_created_at ON message_reactions (created_at)`;
+    } catch (error) {
+      console.log('Some indexes might already exist:', error.message);
+    }
 
     console.log('Simplified reactions table migration completed successfully.');
 
