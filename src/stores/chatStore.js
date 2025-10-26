@@ -348,6 +348,37 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  refreshReactions: async (roomId) => {
+    try {
+      const { messages } = get()
+      const roomMessages = messages.filter(msg => msg.room_id === roomId)
+      
+      const messagesWithReactions = await Promise.all(
+        roomMessages.map(async (message) => {
+          try {
+            const reactionResponse = await api.get(`/reactions?messageId=${message.id}`)
+            if (reactionResponse.data.success) {
+              return {
+                ...message,
+                reactions: reactionResponse.data.reactions || []
+              }
+            }
+          } catch (error) {
+            console.log(`No reactions found for message ${message.id}`)
+          }
+          return {
+            ...message,
+            reactions: message.reactions || []
+          }
+        })
+      )
+      
+      set({ messages: messagesWithReactions })
+    } catch (error) {
+      console.error('Failed to refresh reactions:', error)
+    }
+  },
+
   // Message management
   fetchMessages: async (roomId) => {
     try {
@@ -365,7 +396,29 @@ export const useChatStore = create((set, get) => ({
       }))
       
       console.log(`After deduplication: ${uniqueMessages.length} unique messages`)
-      set({ messages: uniqueMessages })
+      
+      // Fetch reactions for all messages
+      const messagesWithReactions = await Promise.all(
+        uniqueMessages.map(async (message) => {
+          try {
+            const reactionResponse = await api.get(`/reactions?messageId=${message.id}`)
+            if (reactionResponse.data.success) {
+              return {
+                ...message,
+                reactions: reactionResponse.data.reactions || []
+              }
+            }
+          } catch (error) {
+            console.log(`No reactions found for message ${message.id}`)
+          }
+          return {
+            ...message,
+            reactions: message.reactions || []
+          }
+        })
+      )
+      
+      set({ messages: messagesWithReactions })
     } catch (error) {
       console.error('Failed to fetch messages:', error)
       toast.error('Failed to load messages')

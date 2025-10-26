@@ -266,17 +266,19 @@ const MessageBubble = ({ message, isOwn, showAvatar = false, showTime = true }) 
             </p>
           )}
           
-          {/* Reaction button - only show on hover */}
-          {isHovered && (
-            <ReactionButton
-              onReactionClick={handleReactionClick}
-              className="opacity-0 group-hover:opacity-100 transition-opacity"
-            />
-          )}
           
           {/* Action buttons */}
           {showDelete && (
             <div className="absolute -top-2 -right-2 flex gap-1">
+              {/* Emoji reaction button - show for all messages */}
+              <button
+                onClick={handleReactionClick}
+                className="w-6 h-6 bg-yellow-500 text-white rounded-full flex items-center justify-center hover:bg-yellow-600 transition-colors"
+                title="Add reaction"
+              >
+                😃
+              </button>
+              
               {/* Forward button - show for all messages */}
               <button
                 onClick={() => setShowForward(true)}
