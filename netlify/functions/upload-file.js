@@ -1,6 +1,5 @@
 import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
-import { v4 as uuidv4 } from 'uuid';
 
 const sql = neon(process.env.NETLIFY_DATABASE_URL);
 
@@ -140,26 +139,29 @@ export async function handler(event, context) {
         };
       }
 
-      // Generate unique file ID
-      const fileId = uuidv4();
-      
-      // For now, we'll store the file data directly in the database
-      // In production, you might want to use a file storage service
+      // Store file data as data URL
       const fileUrl = `data:${fileType};base64,${fileData}`;
 
-      // Insert file message into database
+      // Insert file record into files table (id will be auto-generated)
+      const newFile = await sql`
+        INSERT INTO files (name, type, size, url, uploaded_by, room_id, created_at)
+        VALUES (${fileName}, ${fileType}, ${fileSize}, ${fileUrl}, ${userId}, ${roomId}, NOW())
+        RETURNING id, name, type, size, url
+      `;
+
+      // Insert file message into messages table with reference to file
       const newMessage = await sql`
-        INSERT INTO messages (room_id, user_id, content, type, created_at)
+        INSERT INTO messages (room_id, user_id, content, type, file_id, created_at)
         VALUES (${roomId}, ${userId}, ${JSON.stringify({
           file: {
-            id: fileId,
-            name: fileName,
-            type: fileType,
-            size: fileSize,
-            url: fileUrl
+            id: newFile[0].id,
+            name: newFile[0].name,
+            type: newFile[0].type,
+            size: newFile[0].size,
+            url: newFile[0].url
           }
-        })}, 'file', NOW())
-        RETURNING id, content, type, created_at
+        })}, 'file', ${newFile[0].id}, NOW())
+        RETURNING id, content, type, file_id, created_at
       `;
 
       // Get user info for the response
