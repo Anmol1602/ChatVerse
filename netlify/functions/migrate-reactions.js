@@ -20,9 +20,9 @@ export async function handler(event, context) {
     // Create message_reactions table
     await sql`
       CREATE TABLE IF NOT EXISTS message_reactions (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        message_id UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
-        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        id SERIAL PRIMARY KEY,
+        message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         emoji VARCHAR(10) NOT NULL,
         created_at TIMESTAMP DEFAULT NOW(),
         UNIQUE(message_id, user_id, emoji)

@@ -20,13 +20,13 @@ export async function handler(event, context) {
     // Create files table
     await sql`
       CREATE TABLE IF NOT EXISTS files (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         type VARCHAR(100) NOT NULL,
         size INTEGER NOT NULL,
         url TEXT NOT NULL,
-        uploaded_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        room_id UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+        uploaded_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        room_id INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
         created_at TIMESTAMP DEFAULT NOW()
       );
     `;
@@ -36,7 +36,7 @@ export async function handler(event, context) {
       DO $$
       BEGIN
           IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='messages' AND column_name='file_id') THEN
-              ALTER TABLE messages ADD COLUMN file_id UUID REFERENCES files(id) ON DELETE SET NULL;
+              ALTER TABLE messages ADD COLUMN file_id INTEGER REFERENCES files(id) ON DELETE SET NULL;
               CREATE INDEX IF NOT EXISTS idx_messages_file_id ON messages (file_id);
               RAISE NOTICE 'Column file_id added to messages table.';
           ELSE
