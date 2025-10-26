@@ -182,9 +182,14 @@ export const useChatStore = create((set, get) => ({
       if (newMessages.length > 0) {
         console.log(`Polling: Found ${newMessages.length} new messages for room ${roomId}`)
         
-        // Add new messages to the current room
+        // Add new messages to the current room with reactions initialized
+        const messagesWithReactions = newMessages.map(message => ({
+          ...message,
+          reactions: message.reactions || []
+        }))
+        
         set(state => ({
-          messages: [...state.messages, ...newMessages]
+          messages: [...state.messages, ...messagesWithReactions]
         }))
         
         // Update unread counts locally instead of full room refresh
@@ -351,10 +356,13 @@ export const useChatStore = create((set, get) => ({
       const newMessages = response.data.messages || []
       console.log(`Fetched ${newMessages.length} messages for room ${roomId}`)
       
-      // Remove duplicates by ID
+      // Remove duplicates by ID and ensure reactions array exists
       const uniqueMessages = newMessages.filter((message, index, self) => 
         index === self.findIndex(m => m.id === message.id)
-      )
+      ).map(message => ({
+        ...message,
+        reactions: message.reactions || []
+      }))
       
       console.log(`After deduplication: ${uniqueMessages.length} unique messages`)
       set({ messages: uniqueMessages })
