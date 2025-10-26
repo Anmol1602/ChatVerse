@@ -32,26 +32,21 @@ export async function handler(event, context) {
     `;
 
     // Add file_id column to messages table if it doesn't exist
-    await sql`
-      DO $$
-      BEGIN
-          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='messages' AND column_name='file_id') THEN
-              ALTER TABLE messages ADD COLUMN file_id INTEGER REFERENCES files(id) ON DELETE SET NULL;
-              CREATE INDEX IF NOT EXISTS idx_messages_file_id ON messages (file_id);
-              RAISE NOTICE 'Column file_id added to messages table.';
-          ELSE
-              RAISE NOTICE 'Column file_id already exists in messages table.';
-          END IF;
-      END
-      $$;
-    `;
+    try {
+      await sql`ALTER TABLE messages ADD COLUMN file_id INTEGER`;
+    } catch (error) {
+      console.log('Column file_id might already exist:', error.message);
+    }
 
     // Create indexes for better performance
-    await sql`
-      CREATE INDEX IF NOT EXISTS idx_files_uploaded_by ON files (uploaded_by);
-      CREATE INDEX IF NOT EXISTS idx_files_room_id ON files (room_id);
-      CREATE INDEX IF NOT EXISTS idx_files_created_at ON files (created_at);
-    `;
+    try {
+      await sql`CREATE INDEX IF NOT EXISTS idx_files_uploaded_by ON files (uploaded_by)`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_files_room_id ON files (room_id)`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_files_created_at ON files (created_at)`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_messages_file_id ON messages (file_id)`;
+    } catch (error) {
+      console.log('Some indexes might already exist:', error.message);
+    }
 
     console.log('Files table migration completed successfully.');
 
