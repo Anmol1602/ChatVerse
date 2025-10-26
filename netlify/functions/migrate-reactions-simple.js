@@ -1,0 +1,61 @@
+import { neon } from '@neondatabase/serverless';
+
+const sql = neon(process.env.NETLIFY_DATABASE_URL);
+
+export async function handler(event, context) {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Credentials': 'true'
+  };
+
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers, body: '' };
+  }
+
+  try {
+    console.log('Starting simplified reactions table migration...');
+
+    // Create message_reactions table without foreign key constraints first
+    await sql`
+      CREATE TABLE IF NOT EXISTS message_reactions (
+        id SERIAL PRIMARY KEY,
+        message_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        emoji VARCHAR(10) NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(message_id, user_id, emoji)
+      );
+    `;
+
+    // Create indexes for better performance
+    await sql`
+      CREATE INDEX IF NOT EXISTS idx_message_reactions_message_id ON message_reactions (message_id);
+      CREATE INDEX IF NOT EXISTS idx_message_reactions_user_id ON message_reactions (user_id);
+      CREATE INDEX IF NOT EXISTS idx_message_reactions_emoji ON message_reactions (emoji);
+      CREATE INDEX IF NOT EXISTS idx_message_reactions_created_at ON message_reactions (created_at);
+    `;
+
+    console.log('Simplified reactions table migration completed successfully.');
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ 
+        message: 'Simplified reactions table migration completed successfully', 
+        timestamp: new Date().toISOString() 
+      })
+    };
+  } catch (error) {
+    console.error('Simplified reactions table migration failed:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ 
+        error: 'Simplified reactions table migration failed', 
+        details: error.message 
+      })
+    };
+  }
+}
