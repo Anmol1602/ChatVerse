@@ -205,6 +205,144 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  // Reaction management
+  addReaction: async (messageId, emoji) => {
+    try {
+      const response = await api.post('/reactions', { messageId, emoji })
+      console.log('Add reaction response:', response.data)
+      
+      if (response.data.success) {
+        // Update local state
+        const { messages } = get()
+        const updatedMessages = messages.map(msg => {
+          if (msg.id === messageId) {
+            const existingReaction = msg.reactions?.find(r => r.emoji === emoji)
+            if (existingReaction) {
+              // Update existing reaction count
+              return {
+                ...msg,
+                reactions: msg.reactions.map(r => 
+                  r.emoji === emoji 
+                    ? { ...r, count: r.count + 1, users: [...r.users, response.data.reaction] }
+                    : r
+                )
+              }
+            } else {
+              // Add new reaction
+              return {
+                ...msg,
+                reactions: [
+                  ...(msg.reactions || []),
+                  {
+                    emoji,
+                    count: 1,
+                    users: [response.data.reaction]
+                  }
+                ]
+              }
+            }
+          }
+          return msg
+        })
+        
+        set({ messages: updatedMessages })
+        return { success: true, action: 'added' }
+      }
+    } catch (error) {
+      console.error('Add reaction error:', error)
+      toast.error('Failed to add reaction')
+      return { success: false, error: error.message }
+    }
+  },
+
+  removeReaction: async (messageId, emoji) => {
+    try {
+      const response = await api.delete(`/reactions?messageId=${messageId}&emoji=${emoji}`)
+      console.log('Remove reaction response:', response.data)
+      
+      if (response.data.success) {
+        // Update local state
+        const { messages } = get()
+        const updatedMessages = messages.map(msg => {
+          if (msg.id === messageId) {
+            const existingReaction = msg.reactions?.find(r => r.emoji === emoji)
+            if (existingReaction && existingReaction.count > 1) {
+              // Decrease count
+              return {
+                ...msg,
+                reactions: msg.reactions.map(r => 
+                  r.emoji === emoji 
+                    ? { ...r, count: r.count - 1, users: r.users.slice(0, -1) }
+                    : r
+                )
+              }
+            } else if (existingReaction && existingReaction.count === 1) {
+              // Remove reaction entirely
+              return {
+                ...msg,
+                reactions: msg.reactions.filter(r => r.emoji !== emoji)
+              }
+            }
+          }
+          return msg
+        })
+        
+        set({ messages: updatedMessages })
+        return { success: true, action: 'removed' }
+      }
+    } catch (error) {
+      console.error('Remove reaction error:', error)
+      toast.error('Failed to remove reaction')
+      return { success: false, error: error.message }
+    }
+  },
+
+  toggleReaction: async (messageId, emoji) => {
+    const { messages } = get()
+    const message = messages.find(msg => msg.id === messageId)
+    
+    if (!message) return { success: false, error: 'Message not found' }
+    
+    const existingReaction = message.reactions?.find(r => r.emoji === emoji)
+    const currentUserId = JSON.parse(localStorage.getItem('user'))?.id
+    
+    // Check if current user already reacted with this emoji
+    const userReacted = existingReaction?.users?.some(u => u.id === currentUserId)
+    
+    if (userReacted) {
+      return await get().removeReaction(messageId, emoji)
+    } else {
+      return await get().addReaction(messageId, emoji)
+    }
+  },
+
+  fetchReactions: async (messageId) => {
+    try {
+      const response = await api.get(`/reactions?messageId=${messageId}`)
+      console.log('Fetch reactions response:', response.data)
+      
+      if (response.data.success) {
+        // Update local state
+        const { messages } = get()
+        const updatedMessages = messages.map(msg => {
+          if (msg.id === messageId) {
+            return {
+              ...msg,
+              reactions: response.data.reactions
+            }
+          }
+          return msg
+        })
+        
+        set({ messages: updatedMessages })
+        return { success: true, reactions: response.data.reactions }
+      }
+    } catch (error) {
+      console.error('Fetch reactions error:', error)
+      return { success: false, error: error.message }
+    }
+  },
+
   // Message management
   fetchMessages: async (roomId) => {
     try {

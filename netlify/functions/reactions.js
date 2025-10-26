@@ -28,31 +28,72 @@ export async function handler(event, context) {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decoded.id;
 
-    if (event.httpMethod === 'POST') {
-      // Add reaction
-      const { messageId, emoji } = JSON.parse(event.body || '{}');
+    if (event.httpMethod === 'GET') {
+      // Get reactions for a specific message
+      const { messageId } = event.queryStringParameters || {};
+      
+      if (!messageId) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'Message ID is required' })
+        };
+      }
 
+      const reactions = await sql`
+        SELECT 
+          r.id,
+          r.message_id,
+          r.user_id,
+          r.emoji,
+          r.created_at,
+          u.name as user_name,
+          u.avatar as user_avatar
+        FROM message_reactions r
+        LEFT JOIN users u ON r.user_id = u.id
+        WHERE r.message_id = ${messageId}
+        ORDER BY r.created_at ASC
+      `;
+
+      // Group reactions by emoji
+      const groupedReactions = reactions.reduce((acc, reaction) => {
+        if (!acc[reaction.emoji]) {
+          acc[reaction.emoji] = {
+            emoji: reaction.emoji,
+            count: 0,
+            users: []
+          };
+        }
+        acc[reaction.emoji].count++;
+        acc[reaction.emoji].users.push({
+          id: reaction.user_id,
+          name: reaction.user_name,
+          avatar: reaction.user_avatar,
+          timestamp: reaction.created_at
+        });
+        return acc;
+      }, {});
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          reactions: Object.values(groupedReactions),
+          total: reactions.length
+        })
+      };
+    }
+
+    if (event.httpMethod === 'POST') {
+      // Add a reaction
+      const { messageId, emoji } = JSON.parse(event.body || '{}');
+      
       if (!messageId || !emoji) {
         return {
           statusCode: 400,
           headers,
           body: JSON.stringify({ error: 'Message ID and emoji are required' })
-        };
-      }
-
-      // Check if user has access to the message
-      const messageAccess = await sql`
-        SELECT m.id, rm.role
-        FROM messages m
-        JOIN room_members rm ON m.room_id = rm.room_id AND rm.user_id = ${userId}
-        WHERE m.id = ${messageId}
-      `;
-
-      if (!messageAccess || messageAccess.length === 0) {
-        return {
-          statusCode: 403,
-          headers,
-          body: JSON.stringify({ error: 'Access denied to this message' })
         };
       }
 
@@ -62,19 +103,23 @@ export async function handler(event, context) {
         WHERE message_id = ${messageId} AND user_id = ${userId} AND emoji = ${emoji}
       `;
 
-      if (existingReaction && existingReaction.length > 0) {
+      if (existingReaction.length > 0) {
         return {
-          statusCode: 400,
+          statusCode: 200,
           headers,
-          body: JSON.stringify({ error: 'User already reacted with this emoji' })
+          body: JSON.stringify({ 
+            success: true, 
+            action: 'already_exists',
+            message: 'Reaction already exists' 
+          })
         };
       }
 
-      // Add reaction
+      // Add the reaction
       const newReaction = await sql`
         INSERT INTO message_reactions (message_id, user_id, emoji, created_at)
         VALUES (${messageId}, ${userId}, ${emoji}, NOW())
-        RETURNING id, emoji, created_at
+        RETURNING id, message_id, user_id, emoji, created_at
       `;
 
       // Get user info for the response
@@ -84,9 +129,10 @@ export async function handler(event, context) {
         statusCode: 201,
         headers,
         body: JSON.stringify({
+          success: true,
+          action: 'added',
           reaction: {
             ...newReaction[0],
-            user_id: user[0].id,
             user_name: user[0].name,
             user_avatar: user[0].avatar
           }
@@ -95,9 +141,9 @@ export async function handler(event, context) {
     }
 
     if (event.httpMethod === 'DELETE') {
-      // Remove reaction
-      const { messageId, emoji } = JSON.parse(event.body || '{}');
-
+      // Remove a reaction
+      const { messageId, emoji } = event.queryStringParameters || {};
+      
       if (!messageId || !emoji) {
         return {
           statusCode: 400,
@@ -106,66 +152,33 @@ export async function handler(event, context) {
         };
       }
 
-      // Remove reaction
-      await sql`
+      // Remove the reaction
+      const deletedReaction = await sql`
         DELETE FROM message_reactions 
         WHERE message_id = ${messageId} AND user_id = ${userId} AND emoji = ${emoji}
+        RETURNING id, message_id, user_id, emoji, created_at
       `;
+
+      if (deletedReaction.length === 0) {
+        return {
+          statusCode: 404,
+          headers,
+          body: JSON.stringify({ 
+            success: false,
+            action: 'not_found',
+            message: 'Reaction not found' 
+          })
+        };
+      }
 
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify({ message: 'Reaction removed successfully' })
-      };
-    }
-
-    if (event.httpMethod === 'GET') {
-      // Get reactions for a message
-      const { messageId } = event.queryStringParameters || {};
-
-      if (!messageId) {
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ error: 'Message ID is required' })
-        };
-      }
-
-      // Check if user has access to the message
-      const messageAccess = await sql`
-        SELECT m.id, rm.role
-        FROM messages m
-        JOIN room_members rm ON m.room_id = rm.room_id AND rm.user_id = ${userId}
-        WHERE m.id = ${messageId}
-      `;
-
-      if (!messageAccess || messageAccess.length === 0) {
-        return {
-          statusCode: 403,
-          headers,
-          body: JSON.stringify({ error: 'Access denied to this message' })
-        };
-      }
-
-      // Get reactions
-      const reactions = await sql`
-        SELECT 
-          mr.id,
-          mr.emoji,
-          mr.created_at,
-          u.id as user_id,
-          u.name as user_name,
-          u.avatar as user_avatar
-        FROM message_reactions mr
-        JOIN users u ON mr.user_id = u.id
-        WHERE mr.message_id = ${messageId}
-        ORDER BY mr.created_at ASC
-      `;
-
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ reactions })
+        body: JSON.stringify({
+          success: true,
+          action: 'removed',
+          reaction: deletedReaction[0]
+        })
       };
     }
 
@@ -176,11 +189,14 @@ export async function handler(event, context) {
     };
 
   } catch (error) {
-    console.error('Reactions error:', error);
+    console.error('Reactions API error:', error);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: 'Internal server error', details: error.message })
+      body: JSON.stringify({ 
+        error: 'Internal server error',
+        details: error.message 
+      })
     };
   }
 }

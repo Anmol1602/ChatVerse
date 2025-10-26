@@ -2,16 +2,23 @@ import { motion } from 'framer-motion'
 import { formatTime } from '../utils/formatTime'
 import { User, Trash2, Download, Image, File, FileText, Music, Video, Archive, Forward } from 'lucide-react'
 import { useChatStore } from '../stores/chatStore'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import MessageReactions from './MessageReactions'
 import MessageStatus from './MessageStatus'
 import MessageForward from './MessageForward'
+import EmojiPicker from './EmojiPicker'
+import ReactionDisplay from './ReactionDisplay'
+import ReactionButton from './ReactionButton'
 
 const MessageBubble = ({ message, isOwn, showAvatar = false, showTime = true }) => {
-  const { deleteMessage } = useChatStore()
+  const { deleteMessage, toggleReaction, fetchReactions } = useChatStore()
   const [showDelete, setShowDelete] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showForward, setShowForward] = useState(false)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [pickerPosition, setPickerPosition] = useState({ x: 0, y: 0 })
+  const messageRef = useRef(null)
+  const [isHovered, setIsHovered] = useState(false)
 
   const handleDelete = async () => {
     if (window.confirm('Are you sure you want to delete this message?')) {
@@ -22,6 +29,26 @@ const MessageBubble = ({ message, isOwn, showAvatar = false, showTime = true }) 
       }
       setIsDeleting(false)
     }
+  }
+
+  const handleReactionClick = () => {
+    if (messageRef.current) {
+      const rect = messageRef.current.getBoundingClientRect()
+      setPickerPosition({
+        x: rect.right - 20,
+        y: rect.top
+      })
+    }
+    setShowEmojiPicker(true)
+  }
+
+  const handleEmojiSelect = async (emoji) => {
+    await toggleReaction(message.id, emoji)
+    setShowEmojiPicker(false)
+  }
+
+  const handleReactionToggle = async (emoji) => {
+    await toggleReaction(message.id, emoji)
   }
 
   const getFileIcon = (fileType) => {
@@ -204,20 +231,47 @@ const MessageBubble = ({ message, isOwn, showAvatar = false, showTime = true }) 
         )}
         
         <div
+          ref={messageRef}
           className={`px-4 py-2 rounded-lg relative group ${
             isOwn
               ? 'bg-primary-600 text-white rounded-br-sm'
               : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-sm'
           }`}
-          onMouseEnter={() => setShowDelete(true)}
-          onMouseLeave={() => setShowDelete(false)}
+          onMouseEnter={() => {
+            setShowDelete(true)
+            setIsHovered(true)
+          }}
+          onMouseLeave={() => {
+            setShowDelete(false)
+            setIsHovered(false)
+          }}
         >
           {message.type === 'file' ? (
-            renderFileMessage()
+            <div className="relative">
+              {renderFileMessage()}
+              {/* Reaction overlay for media messages */}
+              {message.reactions && message.reactions.length > 0 && (
+                <div className="absolute bottom-2 right-2">
+                  <ReactionDisplay
+                    reactions={message.reactions}
+                    onReactionClick={handleReactionToggle}
+                    isOverlay={true}
+                  />
+                </div>
+              )}
+            </div>
           ) : (
             <p className="text-sm break-words whitespace-pre-wrap">
               {message.content}
             </p>
+          )}
+          
+          {/* Reaction button - only show on hover */}
+          {isHovered && (
+            <ReactionButton
+              onReactionClick={handleReactionClick}
+              className="opacity-0 group-hover:opacity-100 transition-opacity"
+            />
           )}
           
           {/* Action buttons */}
@@ -251,6 +305,17 @@ const MessageBubble = ({ message, isOwn, showAvatar = false, showTime = true }) 
           )}
         </div>
         
+        {/* Text message reactions - below the bubble */}
+        {message.type !== 'file' && message.reactions && message.reactions.length > 0 && (
+          <div className="mt-1">
+            <ReactionDisplay
+              reactions={message.reactions}
+              onReactionClick={handleReactionToggle}
+              isOverlay={false}
+            />
+          </div>
+        )}
+        
         <div className="flex items-center justify-between mt-1">
           {showTime && (
             <span className="text-xs text-gray-500 dark:text-gray-400">
@@ -262,9 +327,17 @@ const MessageBubble = ({ message, isOwn, showAvatar = false, showTime = true }) 
           <MessageStatus message={message} isOwn={isOwn} />
         </div>
         
-        {/* Message reactions */}
+        {/* Legacy message reactions - keeping for compatibility */}
         <MessageReactions message={message} isOwn={isOwn} />
       </div>
+
+      {/* Emoji picker */}
+      <EmojiPicker
+        isOpen={showEmojiPicker}
+        onClose={() => setShowEmojiPicker(false)}
+        onEmojiSelect={handleEmojiSelect}
+        position={pickerPosition}
+      />
 
       {/* Forward message modal */}
       <MessageForward
