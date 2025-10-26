@@ -329,8 +329,6 @@ const MessageBubble = ({ message, isOwn, showAvatar = false, showTime = true }) 
           <MessageStatus message={message} isOwn={isOwn} />
         </div>
         
-        {/* Legacy message reactions - keeping for compatibility */}
-        <MessageReactions message={message} isOwn={isOwn} />
       </div>
 
       {/* Emoji picker */}

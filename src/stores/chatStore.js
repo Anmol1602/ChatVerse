@@ -15,6 +15,7 @@ export const useChatStore = create((set, get) => ({
   isPollingMessages: false, // Prevent multiple polling calls
   roomsPollingInterval: null, // For refreshing rooms list
   lastRoomsFetch: null, // Track last rooms fetch to prevent rapid successive calls
+  reactionPollingInterval: null, // For refreshing reactions
 
   // Room management
   fetchRooms: async () => {
@@ -134,11 +135,14 @@ export const useChatStore = create((set, get) => ({
   },
 
   setCurrentRoom: (room) => {
-    const { messagePollingInterval } = get()
+    const { messagePollingInterval, reactionPollingInterval } = get()
     
     // Clear existing polling
     if (messagePollingInterval) {
       clearInterval(messagePollingInterval)
+    }
+    if (reactionPollingInterval) {
+      clearInterval(reactionPollingInterval)
     }
     
     console.log('Setting current room:', room?.id, room?.name)
@@ -151,6 +155,8 @@ export const useChatStore = create((set, get) => ({
         get().pollForNewMessages(room.id)
       }, 15000) // Increased to 15 seconds to prevent page reloads
       set({ messagePollingInterval: interval })
+      // Start reaction polling for real-time sync
+      get().startReactionPolling(room.id)
       console.log('Room switching completed for:', room.name)
     }
   },
@@ -191,6 +197,9 @@ export const useChatStore = create((set, get) => ({
         set(state => ({
           messages: [...state.messages, ...messagesWithReactions]
         }))
+        
+        // Also refresh reactions for existing messages to sync with other users
+        get().refreshReactions(roomId)
         
         // Update unread counts locally instead of full room refresh
         console.log('Updating unread counts locally for new messages...')
@@ -376,6 +385,34 @@ export const useChatStore = create((set, get) => ({
       set({ messages: messagesWithReactions })
     } catch (error) {
       console.error('Failed to refresh reactions:', error)
+    }
+  },
+
+  startReactionPolling: (roomId) => {
+    const { reactionPollingInterval } = get()
+    
+    // Clear existing interval
+    if (reactionPollingInterval) {
+      clearInterval(reactionPollingInterval)
+    }
+    
+    console.log('Starting reaction polling for room:', roomId)
+    const interval = setInterval(() => {
+      const { currentRoom } = get()
+      if (currentRoom && currentRoom.id === roomId) {
+        console.log('Polling for reaction updates...')
+        get().refreshReactions(roomId)
+      }
+    }, 10000) // Poll every 10 seconds for reactions
+    
+    set({ reactionPollingInterval: interval })
+  },
+
+  stopReactionPolling: () => {
+    const { reactionPollingInterval } = get()
+    if (reactionPollingInterval) {
+      clearInterval(reactionPollingInterval)
+      set({ reactionPollingInterval: null })
     }
   },
 
@@ -810,11 +847,15 @@ export const useChatStore = create((set, get) => ({
     const interval = setInterval(() => {
       console.log('Polling for rooms updates...')
       // Add debouncing to prevent rapid successive calls
-      const { lastRoomsFetch } = get()
+      const { lastRoomsFetch, currentRoom } = get()
       const now = Date.now()
       if (!lastRoomsFetch || (now - lastRoomsFetch) > 40000) { // 40 second minimum between fetches
         get().fetchRooms()
         set({ lastRoomsFetch: now })
+        // Also refresh reactions for real-time sync
+        if (currentRoom) {
+          get().refreshReactions(currentRoom.id)
+        }
       } else {
         console.log('Skipping rooms fetch - too soon since last fetch')
       }
