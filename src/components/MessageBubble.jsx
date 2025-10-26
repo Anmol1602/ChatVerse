@@ -223,7 +223,7 @@ const MessageBubble = ({ message, isOwn, showAvatar = false, showTime = true }) 
         </div>
       )}
       
-      <div className={`flex flex-col max-w-xs lg:max-w-md ${isOwn ? 'items-end' : 'items-start'}`}>
+      <div className={`flex flex-col max-w-[75%] ${isOwn ? 'items-end' : 'items-start'}`}>
         {showAvatar && !isOwn && (
           <span className="text-xs text-gray-500 dark:text-gray-400 mb-1">
             {message.user_name}
@@ -232,10 +232,10 @@ const MessageBubble = ({ message, isOwn, showAvatar = false, showTime = true }) 
         
         <div
           ref={messageRef}
-          className={`px-4 py-2 rounded-lg relative group ${
+          className={`rounded-2xl p-3 relative group ${
             isOwn
-              ? 'bg-primary-600 text-white rounded-br-sm'
-              : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-bl-sm'
+              ? 'bg-green-500 text-white'
+              : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100'
           }`}
           onMouseEnter={() => {
             setShowDelete(true)
@@ -249,6 +249,13 @@ const MessageBubble = ({ message, isOwn, showAvatar = false, showTime = true }) 
           {message.type === 'file' ? (
             <div className="relative">
               {renderFileMessage()}
+              {/* Timestamp and status at bottom-right for file messages */}
+              <div className="flex items-center justify-end gap-1 mt-2">
+                <span className="text-xs text-gray-400">
+                  {formatTime(message.created_at)}
+                </span>
+                <MessageStatus message={message} isOwn={isOwn} />
+              </div>
               {/* Reaction overlay for media messages */}
               {message.reactions && message.reactions.length > 0 && (
                 <div className="absolute bottom-2 right-2">
@@ -261,9 +268,18 @@ const MessageBubble = ({ message, isOwn, showAvatar = false, showTime = true }) 
               )}
             </div>
           ) : (
-            <p className="text-sm break-words whitespace-pre-wrap">
-              {message.content}
-            </p>
+            <div>
+              <p className="text-sm break-words whitespace-pre-wrap">
+                {message.content}
+              </p>
+              {/* Timestamp and status at bottom-right */}
+              <div className="flex items-center justify-end gap-1 mt-1">
+                <span className="text-xs text-gray-400">
+                  {formatTime(message.created_at)}
+                </span>
+                <MessageStatus message={message} isOwn={isOwn} />
+              </div>
+            </div>
           )}
           
           
@@ -318,16 +334,6 @@ const MessageBubble = ({ message, isOwn, showAvatar = false, showTime = true }) 
           </div>
         )}
         
-        <div className="flex items-center justify-between mt-1">
-          {showTime && (
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              {formatTime(message.created_at)}
-            </span>
-          )}
-          
-          {/* Message status (read receipts) */}
-          <MessageStatus message={message} isOwn={isOwn} />
-        </div>
         
       </div>
 

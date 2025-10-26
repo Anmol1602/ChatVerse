@@ -9,6 +9,7 @@ import EnhancedLoadingSpinner from './EnhancedLoadingSpinner'
 import { MessageCircle, Users, RefreshCw, Settings, Trash2, Search } from 'lucide-react'
 import RoomMembersModal from './RoomMembersModal'
 import DeleteRoomModal from './DeleteRoomModal'
+import DateSeparator from './DateSeparator'
 
 const ChatArea = () => {
   const {
@@ -47,6 +48,35 @@ const ChatArea = () => {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  // Group messages by date for date separators
+  const groupMessagesByDate = (messages) => {
+    const grouped = []
+    let currentDate = null
+    
+    messages.forEach((message, index) => {
+      const messageDate = new Date(message.created_at).toDateString()
+      
+      // If this is a new date, add a date separator
+      if (currentDate !== messageDate) {
+        grouped.push({
+          type: 'date',
+          date: message.created_at,
+          id: `date-${messageDate}`
+        })
+        currentDate = messageDate
+      }
+      
+      // Add the message
+      grouped.push({
+        type: 'message',
+        ...message,
+        index
+      })
+    })
+    
+    return grouped
   }
 
 
@@ -161,12 +191,20 @@ const ChatArea = () => {
             </div>
           ) : (
             <AnimatePresence mode="popLayout">
-              {messages.map((message, index) => {
+              {groupMessagesByDate(messages).map((item, index) => {
+                if (item.type === 'date') {
+                  return (
+                    <DateSeparator
+                      key={item.id}
+                      date={item.date}
+                    />
+                  )
+                }
+                
+                const message = item
                 const isOwn = message.user_id === useChatStore.getState().user?.id
-                const prevMessage = messages[index - 1]
+                const prevMessage = messages[message.index - 1]
                 const showAvatar = !prevMessage || prevMessage.user_id !== message.user_id
-                const showTime = !prevMessage || 
-                  new Date(message.created_at).getTime() - new Date(prevMessage.created_at).getTime() > 300000 // 5 minutes
 
                 return (
                   <motion.div
@@ -176,7 +214,7 @@ const ChatArea = () => {
                     exit={{ opacity: 0, y: -20, scale: 0.95 }}
                     transition={{ 
                       duration: 0.3, 
-                      delay: index * 0.02,
+                      delay: message.index * 0.02,
                       ease: 'easeOut'
                     }}
                     layout
@@ -185,7 +223,7 @@ const ChatArea = () => {
                       message={message}
                       isOwn={isOwn}
                       showAvatar={showAvatar}
-                      showTime={showTime}
+                      showTime={false} // We handle timestamps inside the bubble now
                     />
                   </motion.div>
                 )
