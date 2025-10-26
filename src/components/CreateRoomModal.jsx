@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useChatStore } from '../stores/chatStore'
-import { X, Users, MessageCircle } from 'lucide-react'
+import { X, Users, MessageCircle, Plus } from 'lucide-react'
+import UserSearchModal from './UserSearchModal'
 
 const CreateRoomModal = ({ onClose }) => {
   const [formData, setFormData] = useState({
@@ -10,6 +11,8 @@ const CreateRoomModal = ({ onClose }) => {
     type: 'group'
   })
   const [isLoading, setIsLoading] = useState(false)
+  const [selectedMembers, setSelectedMembers] = useState([])
+  const [showUserSearch, setShowUserSearch] = useState(false)
   const { createRoom } = useChatStore()
 
   const handleChange = (e) => {
@@ -24,16 +27,33 @@ const CreateRoomModal = ({ onClose }) => {
     if (!formData.name.trim()) return
 
     setIsLoading(true)
+    const memberIds = selectedMembers.map(member => member.id)
     const result = await createRoom(
       formData.name.trim(),
       formData.description.trim(),
-      formData.type
+      formData.type,
+      memberIds
     )
     
     if (result.success) {
       onClose()
     }
     setIsLoading(false)
+  }
+
+  const handleAddMember = (user) => {
+    console.log('handleAddMember called with user:', user)
+    console.log('Current selectedMembers:', selectedMembers)
+    if (!selectedMembers.find(member => member.id === user.id)) {
+      console.log('Adding user to selectedMembers:', user)
+      setSelectedMembers([...selectedMembers, user])
+    } else {
+      console.log('User already in selectedMembers:', user.id)
+    }
+  }
+
+  const handleRemoveMember = (userId) => {
+    setSelectedMembers(selectedMembers.filter(member => member.id !== userId))
   }
 
   return (
@@ -140,6 +160,52 @@ const CreateRoomModal = ({ onClose }) => {
               </div>
             </div>
 
+            {/* Member Selection */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Add Members (Optional)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowUserSearch(true)}
+                  className="flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Member
+                </button>
+              </div>
+              
+              {selectedMembers.length > 0 && (
+                <div className="space-y-2">
+                  {selectedMembers.map((member) => (
+                    <div key={member.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                          {member.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {member.name}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {member.email}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveMember(member.id)}
+                        className="text-gray-400 hover:text-red-500 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="flex gap-3 pt-4">
               <button
                 type="button"
@@ -163,6 +229,14 @@ const CreateRoomModal = ({ onClose }) => {
           </form>
         </div>
       </motion.div>
+
+      {/* User Search Modal */}
+      {showUserSearch && (
+        <UserSearchModal
+          onClose={() => setShowUserSearch(false)}
+          onUserSelect={handleAddMember}
+        />
+      )}
     </div>
   )
 }

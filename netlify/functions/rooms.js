@@ -1,7 +1,9 @@
-import { client } from '@netlify/database';
+import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
 
 export async function handler(event, context) {
+  // Configure neon with the database URL
+  const sql = neon(process.env.NETLIFY_DATABASE_URL);
   // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return {
@@ -49,8 +51,10 @@ export async function handler(event, context) {
     const userId = decoded.id;
 
     if (event.httpMethod === 'GET') {
-      // Get user's rooms
-      const { data: rooms } = await client.query(`
+      try {
+        // Get user's rooms
+        console.log('Fetching rooms for user:', userId);
+        const rooms = await sql`
         SELECT 
           r.id,
           r.name,
@@ -58,18 +62,30 @@ export async function handler(event, context) {
           r.type,
           r.created_at,
           r.updated_at,
-          COUNT(rm.user_id) as member_count,
-          MAX(m.created_at) as last_message_at
+          (SELECT COUNT(*) FROM room_members rm2 WHERE rm2.room_id = r.id) as member_count,
+          MAX(m.created_at) as last_message_at,
+          COALESCE(
+            (SELECT COUNT(*) FROM messages m2 
+             WHERE m2.room_id = r.id 
+             AND m2.user_id != ${userId}
+             AND m2.created_at > COALESCE(
+               (SELECT rm.last_read_at FROM room_members rm 
+                WHERE rm.room_id = r.id AND rm.user_id = ${userId}), 
+               (SELECT rm3.joined_at FROM room_members rm3 
+                WHERE rm3.room_id = r.id AND rm3.user_id = ${userId})
+             )
+            ), 0
+          ) as unread_count
         FROM rooms r
-        LEFT JOIN room_members rm ON r.id = rm.room_id
         LEFT JOIN messages m ON r.id = m.room_id
         WHERE r.id IN (
-          SELECT room_id FROM room_members WHERE user_id = $1
+          SELECT room_id FROM room_members WHERE user_id = ${userId}
         )
         GROUP BY r.id, r.name, r.description, r.type, r.created_at, r.updated_at
         ORDER BY COALESCE(MAX(m.created_at), r.updated_at) DESC
-      `, [userId]);
+      `;
 
+      console.log('Successfully fetched rooms:', rooms.length);
       return {
         statusCode: 200,
         headers: {
@@ -78,11 +94,27 @@ export async function handler(event, context) {
         },
         body: JSON.stringify({ rooms })
       };
+      } catch (error) {
+        console.error('Error fetching rooms:', error);
+        return {
+          statusCode: 500,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ 
+            error: 'Failed to fetch rooms',
+            details: error.message 
+          })
+        };
+      }
     }
 
     if (event.httpMethod === 'POST') {
       // Create a new room
       const { name, description, type = 'group', memberIds = [] } = JSON.parse(event.body || '{}');
+
+      console.log('Creating room with data:', { name, description, type, memberIds, userId });
 
       if (!name) {
         return {
@@ -96,28 +128,32 @@ export async function handler(event, context) {
       }
 
       // Create the room
-      const { data: newRoom } = await client.query(`
+      const newRoom = await sql`
         INSERT INTO rooms (name, description, type, created_by, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, NOW(), NOW())
+        VALUES (${name}, ${description}, ${type}, ${userId}, NOW(), NOW())
         RETURNING id, name, description, type, created_at
-      `, [name, description, type, userId]);
+      `;
 
       const roomId = newRoom[0].id;
+      console.log('Room created with ID:', roomId);
 
       // Add creator as a member
-      await client.query(`
+      await sql`
         INSERT INTO room_members (room_id, user_id, joined_at)
-        VALUES ($1, $2, NOW())
-      `, [roomId, userId]);
+        VALUES (${roomId}, ${userId}, NOW())
+      `;
+      console.log('Creator added as member');
 
       // Add other members if provided
       if (memberIds.length > 0) {
+        console.log('Adding members:', memberIds);
         for (const memberId of memberIds) {
           if (memberId !== userId) {
-            await client.query(`
+            await sql`
               INSERT INTO room_members (room_id, user_id, joined_at)
-              VALUES ($1, $2, NOW())
-            `, [roomId, memberId]);
+              VALUES (${roomId}, ${memberId}, NOW())
+            `;
+            console.log('Member added:', memberId);
           }
         }
       }
@@ -148,9 +184,9 @@ export async function handler(event, context) {
       }
 
       // Check if room exists
-      const { data: room } = await client.query(`
-        SELECT id, type FROM rooms WHERE id = $1
-      `, [roomId]);
+      const room = await sql`
+        SELECT id, type FROM rooms WHERE id = ${roomId}
+      `;
 
       if (!room || room.length === 0) {
         return {
@@ -164,9 +200,9 @@ export async function handler(event, context) {
       }
 
       // Check if user is already a member
-      const { data: existingMember } = await client.query(`
-        SELECT id FROM room_members WHERE room_id = $1 AND user_id = $2
-      `, [roomId, userId]);
+      const existingMember = await sql`
+        SELECT id FROM room_members WHERE room_id = ${roomId} AND user_id = ${userId}
+      `;
 
       if (existingMember && existingMember.length > 0) {
         return {
@@ -180,10 +216,10 @@ export async function handler(event, context) {
       }
 
       // Add user to room
-      await client.query(`
+      await sql`
         INSERT INTO room_members (room_id, user_id, joined_at)
-        VALUES ($1, $2, NOW())
-      `, [roomId, userId]);
+        VALUES (${roomId}, ${userId}, NOW())
+      `;
 
       return {
         statusCode: 200,
@@ -211,10 +247,10 @@ export async function handler(event, context) {
       }
 
       // Remove user from room
-      const { data: result } = await client.query(`
-        DELETE FROM room_members WHERE room_id = $1 AND user_id = $2
+      const result = await sql`
+        DELETE FROM room_members WHERE room_id = ${roomId} AND user_id = ${userId}
         RETURNING id
-      `, [roomId, userId]);
+      `;
 
       if (!result || result.length === 0) {
         return {

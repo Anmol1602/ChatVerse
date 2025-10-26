@@ -1,21 +1,16 @@
 import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
 
-// This is a placeholder for WebSocket functionality
-// In a real implementation, you would use a service like Pusher, Ably, or Supabase Realtime
-// for WebSocket connections since Netlify Functions are stateless
-
 export async function handler(event, context) {
-  // Configure neon with the database URL
   const sql = neon(process.env.NETLIFY_DATABASE_URL);
-  // Handle CORS preflight
+
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 200,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
         'Access-Control-Allow-Credentials': 'true'
       },
       body: ''
@@ -23,10 +18,9 @@ export async function handler(event, context) {
   }
 
   try {
-    // Verify JWT token
-    const token = event.headers.authorization?.replace('Bearer ', '') || 
+    const token = event.headers.authorization?.replace('Bearer ', '') ||
                   event.headers.cookie?.split('token=')[1]?.split(';')[0];
-    
+
     if (!token) {
       return {
         statusCode: 401,
@@ -55,45 +49,63 @@ export async function handler(event, context) {
     const userId = decoded.id;
 
     if (event.httpMethod === 'GET') {
-      // Return WebSocket connection info
-      // In production, you would connect to a real WebSocket service
-      return {
-        statusCode: 200,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ 
-          message: 'WebSocket connection established',
-          userId,
-          // In production, return actual WebSocket URL
-          wsUrl: process.env.VITE_WS_URL || 'wss://your-websocket-service.com'
-        })
-      };
-    }
-
-    if (event.httpMethod === 'POST') {
-      // Handle WebSocket events (typing, presence, etc.)
-      const { type, payload } = JSON.parse(event.body || '{}');
-
-      // Update user online status
-      if (type === 'ping') {
-        await client.query(`
-          UPDATE users SET online = true, last_seen = NOW() WHERE id = $1
-        `, [userId]);
+      const { roomId, q } = event.queryStringParameters || {};
+      
+      if (!roomId || !q) {
+        return {
+          statusCode: 400,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ error: 'Room ID and search query are required' })
+        };
       }
 
+      // Check if user has access to the room
+      const roomAccess = await sql`
+        SELECT id FROM room_members 
+        WHERE room_id = ${roomId} AND user_id = ${userId}
+      `;
+
+      if (!roomAccess || roomAccess.length === 0) {
+        return {
+          statusCode: 403,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ error: 'Access denied to this room' })
+        };
+      }
+
+      // Search messages with case-insensitive text search
+      const messages = await sql`
+        SELECT 
+          m.id,
+          m.content,
+          m.type,
+          m.created_at,
+          m.read_by,
+          u.id as user_id,
+          u.name as user_name,
+          u.avatar as user_avatar
+        FROM messages m
+        JOIN users u ON m.user_id = u.id
+        WHERE m.room_id = ${roomId}
+          AND m.type = 'text'
+          AND LOWER(m.content) LIKE LOWER(${'%' + q + '%'})
+        ORDER BY m.created_at DESC
+        LIMIT 50
+      `;
+
       return {
         statusCode: 200,
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ 
-          message: 'Event processed',
-          type,
-          payload 
-        })
+        body: JSON.stringify({ messages })
       };
     }
 
@@ -107,7 +119,7 @@ export async function handler(event, context) {
     };
 
   } catch (error) {
-    console.error('WebSocket error:', error);
+    console.error('Messages search error:', error);
     return {
       statusCode: 500,
       headers: {

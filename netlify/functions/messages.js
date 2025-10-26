@@ -1,7 +1,9 @@
-import { client } from '@netlify/database';
+import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
 
 export async function handler(event, context) {
+  // Configure neon with the database URL
+  const sql = neon(process.env.NETLIFY_DATABASE_URL);
   // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return {
@@ -64,9 +66,7 @@ export async function handler(event, context) {
       }
 
       // Check if user has access to the room
-      const { data: roomAccess } = await client.query(`
-        SELECT id FROM room_members WHERE room_id = $1 AND user_id = $2
-      `, [roomId, userId]);
+      const roomAccess = await sql`SELECT id FROM room_members WHERE room_id = ${roomId} AND user_id = ${userId}`;
 
       if (!roomAccess || roomAccess.length === 0) {
         return {
@@ -79,7 +79,7 @@ export async function handler(event, context) {
         };
       }
 
-      const { data: messages } = await client.query(`
+      const messages = await sql`
         SELECT 
           m.id,
           m.content,
@@ -91,9 +91,9 @@ export async function handler(event, context) {
           u.avatar as user_avatar
         FROM messages m
         JOIN users u ON m.user_id = u.id
-        WHERE m.room_id = $1
+        WHERE m.room_id = ${roomId}
         ORDER BY m.created_at ASC
-      `, [roomId]);
+      `;
 
       return {
         statusCode: 200,
@@ -121,9 +121,7 @@ export async function handler(event, context) {
       }
 
       // Check if user has access to the room
-      const { data: roomAccess } = await client.query(`
-        SELECT id FROM room_members WHERE room_id = $1 AND user_id = $2
-      `, [roomId, userId]);
+      const roomAccess = await sql`SELECT id FROM room_members WHERE room_id = ${roomId} AND user_id = ${userId}`;
 
       if (!roomAccess || roomAccess.length === 0) {
         return {
@@ -136,16 +134,14 @@ export async function handler(event, context) {
         };
       }
 
-      const { data: newMessage } = await client.query(`
+      const newMessage = await sql`
         INSERT INTO messages (room_id, user_id, content, type, created_at)
-        VALUES ($1, $2, $3, $4, NOW())
+        VALUES (${roomId}, ${userId}, ${content}, ${type}, NOW())
         RETURNING id, content, type, created_at
-      `, [roomId, userId, content, type]);
+      `;
 
       // Get user info for the response
-      const { data: user } = await client.query(`
-        SELECT id, name, avatar FROM users WHERE id = $1
-      `, [userId]);
+      const user = await sql`SELECT id, name, avatar FROM users WHERE id = ${userId}`;
 
       const messageWithUser = {
         ...newMessage[0],
@@ -181,12 +177,12 @@ export async function handler(event, context) {
       }
 
       // Update read status for messages
-      const { data: updatedMessages } = await client.query(`
+      const updatedMessages = await sql`
         UPDATE messages 
-        SET read_by = array_append(COALESCE(read_by, '{}'), $1)
-        WHERE id = ANY($2) AND NOT ($1 = ANY(COALESCE(read_by, '{}')))
+        SET read_by = array_append(COALESCE(read_by, '{}'), ${userId})
+        WHERE id = ANY(${messageIds}) AND NOT (${userId} = ANY(COALESCE(read_by, '{}')))
         RETURNING id
-      `, [userId, messageIds]);
+      `;
 
       return {
         statusCode: 200,
@@ -198,6 +194,64 @@ export async function handler(event, context) {
           updatedCount: updatedMessages.length,
           message: 'Messages marked as read'
         })
+      };
+    }
+
+    if (event.httpMethod === 'DELETE') {
+      // Delete a message
+      const { messageId } = JSON.parse(event.body || '{}');
+
+      if (!messageId) {
+        return {
+          statusCode: 400,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ error: 'Message ID is required' })
+        };
+      }
+
+      // Check if user is the author of the message
+      const message = await sql`
+        SELECT user_id, room_id FROM messages WHERE id = ${messageId}
+      `;
+
+      if (!message || message.length === 0) {
+        return {
+          statusCode: 404,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ error: 'Message not found' })
+        };
+      }
+
+      // Check if user is the author of the message
+      const isAuthor = message[0].user_id === userId;
+
+      if (!isAuthor) {
+        return {
+          statusCode: 403,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ error: 'You can only delete your own messages' })
+        };
+      }
+
+      // Delete the message
+      await sql`DELETE FROM messages WHERE id = ${messageId}`;
+
+      return {
+        statusCode: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ message: 'Message deleted successfully' })
       };
     }
 

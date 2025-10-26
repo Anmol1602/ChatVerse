@@ -1,0 +1,77 @@
+import { neon } from '@neondatabase/serverless';
+
+const sql = neon(process.env.NETLIFY_DATABASE_URL);
+
+export async function handler(event, context) {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Credentials': 'true'
+  };
+
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers, body: '' };
+  }
+
+  try {
+    console.log('Starting files table migration...');
+
+    // Create files table
+    await sql`
+      CREATE TABLE IF NOT EXISTS files (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name VARCHAR(255) NOT NULL,
+        type VARCHAR(100) NOT NULL,
+        size INTEGER NOT NULL,
+        url TEXT NOT NULL,
+        uploaded_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        room_id UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+    `;
+
+    // Add file_id column to messages table if it doesn't exist
+    await sql`
+      DO $$
+      BEGIN
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='messages' AND column_name='file_id') THEN
+              ALTER TABLE messages ADD COLUMN file_id UUID REFERENCES files(id) ON DELETE SET NULL;
+              CREATE INDEX IF NOT EXISTS idx_messages_file_id ON messages (file_id);
+              RAISE NOTICE 'Column file_id added to messages table.';
+          ELSE
+              RAISE NOTICE 'Column file_id already exists in messages table.';
+          END IF;
+      END
+      $$;
+    `;
+
+    // Create indexes for better performance
+    await sql`
+      CREATE INDEX IF NOT EXISTS idx_files_uploaded_by ON files (uploaded_by);
+      CREATE INDEX IF NOT EXISTS idx_files_room_id ON files (room_id);
+      CREATE INDEX IF NOT EXISTS idx_files_created_at ON files (created_at);
+    `;
+
+    console.log('Files table migration completed successfully.');
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ 
+        message: 'Files table migration completed successfully', 
+        timestamp: new Date().toISOString() 
+      })
+    };
+  } catch (error) {
+    console.error('Files table migration failed:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ 
+        error: 'Files table migration failed', 
+        details: error.message 
+      })
+    };
+  }
+}

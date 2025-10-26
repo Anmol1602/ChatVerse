@@ -1,7 +1,9 @@
-import { client } from '@netlify/database';
+import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
 
 export async function handler(event, context) {
+  // Configure neon with the database URL
+  const sql = neon(process.env.NETLIFY_DATABASE_URL);
   // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return {
@@ -50,10 +52,10 @@ export async function handler(event, context) {
 
     if (event.httpMethod === 'GET') {
       // Get current user profile
-      const { data: user } = await client.query(`
+      const user = await sql`
         SELECT id, email, name, avatar, online, last_seen, created_at
-        FROM users WHERE id = $1
-      `, [userId]);
+        FROM users WHERE id = ${userId}
+      `;
 
       if (!user || user.length === 0) {
         return {
@@ -109,12 +111,12 @@ export async function handler(event, context) {
 
       updateValues.push(userId);
 
-      const { data: updatedUser } = await client.query(`
+      const updatedUser = await sql`
         UPDATE users 
         SET ${updateFields.join(', ')}, updated_at = NOW()
-        WHERE id = $${paramCount}
+        WHERE id = ${userId}
         RETURNING id, email, name, avatar, online, last_seen, created_at
-      `, updateValues);
+      `;
 
       return {
         statusCode: 200,
@@ -141,15 +143,15 @@ export async function handler(event, context) {
         };
       }
 
-      const { data: users } = await client.query(`
+      const users = await sql`
         SELECT id, name, avatar, online, last_seen
         FROM users 
-        WHERE (name ILIKE $1 OR email ILIKE $1) AND id != $2
+        WHERE (name ILIKE ${`%${query}%`} OR email ILIKE ${`%${query}%`}) AND id != ${userId}
         ORDER BY 
           CASE WHEN online = true THEN 0 ELSE 1 END,
           name ASC
-        LIMIT $3
-      `, [`%${query}%`, userId, limit]);
+        LIMIT ${limit}
+      `;
 
       return {
         statusCode: 200,

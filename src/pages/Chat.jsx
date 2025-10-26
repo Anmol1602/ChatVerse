@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { useAuthStore } from '../stores/authStore'
 import { useChatStore } from '../stores/chatStore'
@@ -9,12 +9,29 @@ import ThemeToggle from '../components/ThemeToggle'
 
 const Chat = () => {
   const { user, logout } = useAuthStore()
-  const { fetchRooms, loading } = useChatStore()
+  const { fetchRooms, loading, stopMessagePolling, startRoomsPolling, stopRoomsPolling } = useChatStore()
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const hasFetchedRooms = useRef(false)
 
   useEffect(() => {
-    fetchRooms()
-  }, [fetchRooms])
+    console.log('Chat useEffect triggered, user:', user?.id, 'hasFetchedRooms:', hasFetchedRooms.current)
+    // Only fetch rooms once per user
+    if (!hasFetchedRooms.current && user) {
+      hasFetchedRooms.current = true
+      console.log('Fetching rooms for user:', user.id)
+      fetchRooms()
+      // Re-enable rooms polling with smart debouncing to prevent page reloads
+      startRoomsPolling()
+    }
+  }, [user?.id]) // Only depend on user ID, not the entire user object
+
+  // Cleanup polling when component unmounts
+  useEffect(() => {
+    return () => {
+      stopMessagePolling()
+      stopRoomsPolling()
+    }
+  }, []) // Remove function dependencies to prevent infinite loops
 
   if (loading) {
     return <LoadingSpinner size="lg" className="min-h-screen" />
@@ -32,24 +49,24 @@ const Chat = () => {
         </div>
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - Fixed width and height */}
       <motion.div
         initial={{ x: -300 }}
         animate={{ x: sidebarOpen ? 0 : -300 }}
         transition={{ duration: 0.3, ease: 'easeInOut' }}
         className={`
-          fixed lg:static inset-y-0 left-0 z-50 w-80 bg-white dark:bg-gray-800 
-          border-r border-gray-200 dark:border-gray-700 flex flex-col
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          fixed lg:static inset-y-0 left-0 z-50 w-80 lg:w-1/4 bg-white dark:bg-gray-800 
+          border-r border-gray-200 dark:border-gray-700 flex flex-col h-screen
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >
         <Sidebar onClose={() => setSidebarOpen(false)} />
       </motion.div>
 
-      {/* Main chat area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between">
+      {/* Main chat area - Takes remaining width */}
+      <div className="flex-1 lg:w-3/4 flex flex-col h-screen min-w-0">
+        {/* Header - Fixed at top */}
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -83,8 +100,8 @@ const Chat = () => {
           </div>
         </div>
 
-        {/* Chat area */}
-        <div className="flex-1 flex">
+        {/* Chat area - Scrollable and grows to fill space */}
+        <div className="flex-1 flex flex-col min-h-0">
           <ChatArea />
         </div>
       </div>

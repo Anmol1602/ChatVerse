@@ -1,17 +1,19 @@
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useChatStore } from '../stores/chatStore'
 import { 
   Plus, 
   Search, 
   MessageCircle, 
-  Users, 
+  Users,
   Settings,
   X,
-  Hash
+  Hash,
+  RefreshCw
 } from 'lucide-react'
 import CreateRoomModal from './CreateRoomModal'
 import UserSearchModal from './UserSearchModal'
+import EnhancedLoadingSpinner from './EnhancedLoadingSpinner'
 
 const Sidebar = ({ onClose }) => {
   const { 
@@ -19,16 +21,17 @@ const Sidebar = ({ onClose }) => {
     currentRoom, 
     setCurrentRoom, 
     fetchRooms, 
-    loading 
+    loading,
+    createDM,
+    markRoomAsRead
   } = useChatStore()
   
   const [searchQuery, setSearchQuery] = useState('')
   const [showCreateRoom, setShowCreateRoom] = useState(false)
   const [showUserSearch, setShowUserSearch] = useState(false)
 
-  useEffect(() => {
-    fetchRooms()
-  }, [fetchRooms])
+  // fetchRooms is already called by the Chat component
+  // No need to call it again here
 
   const filteredRooms = rooms.filter(room =>
     room.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -43,6 +46,23 @@ const Sidebar = ({ onClose }) => {
             Rooms
           </h2>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                console.log('Manual rooms refresh triggered')
+                fetchRooms()
+              }}
+              className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+              title="Refresh rooms"
+            >
+              <RefreshCw className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setShowUserSearch(true)}
+              className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+              title="Start direct message"
+            >
+              <MessageCircle className="w-5 h-5" />
+            </button>
             <button
               onClick={() => setShowCreateRoom(true)}
               className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
@@ -78,7 +98,7 @@ const Sidebar = ({ onClose }) => {
       <div className="flex-1 overflow-y-auto scrollbar-thin">
         {loading ? (
           <div className="flex items-center justify-center p-8">
-            <div className="spinner w-6 h-6" />
+            <EnhancedLoadingSpinner size="md" />
           </div>
         ) : filteredRooms.length === 0 ? (
           <div className="p-8 text-center">
@@ -97,19 +117,33 @@ const Sidebar = ({ onClose }) => {
           </div>
         ) : (
           <div className="p-2">
-            {filteredRooms.map((room) => (
-              <motion.button
-                key={room.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3 }}
-                onClick={() => setCurrentRoom(room)}
-                className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors duration-200 ${
-                  currentRoom?.id === room.id
-                    ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300'
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
-                }`}
-              >
+            <AnimatePresence>
+              {filteredRooms.map((room, index) => (
+                <motion.button
+                  key={room.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ 
+                    duration: 0.3, 
+                    delay: index * 0.05,
+                    ease: 'easeOut'
+                  }}
+                  whileHover={{ x: 4 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={async () => {
+                    setCurrentRoom(room)
+                    // Mark room as read when selected
+                    if (room.unread_count > 0) {
+                      await markRoomAsRead(room.id)
+                    }
+                  }}
+                  className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors duration-200 ${
+                    currentRoom?.id === room.id
+                      ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300'
+                      : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                  }`}
+                >
                 <div className="flex-shrink-0">
                   {room.type === 'group' ? (
                     <Users className="w-5 h-5" />
@@ -124,9 +158,16 @@ const Sidebar = ({ onClose }) => {
                       <Hash className="w-3 h-3 text-gray-400" />
                     )}
                   </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                    {room.member_count} member{room.member_count !== 1 ? 's' : ''}
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                      {room.member_count} member{room.member_count !== 1 ? 's' : ''}
+                    </p>
+                    {room.unread_count > 0 && (
+                      <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full min-w-[20px] text-center">
+                        {room.unread_count > 99 ? '99+' : room.unread_count}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 {room.last_message_at && (
                   <div className="flex-shrink-0 text-xs text-gray-400">
@@ -135,6 +176,7 @@ const Sidebar = ({ onClose }) => {
                 )}
               </motion.button>
             ))}
+            </AnimatePresence>
           </div>
         )}
       </div>
