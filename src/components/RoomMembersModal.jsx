@@ -187,7 +187,7 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
                         <p className="font-medium text-gray-900 dark:text-white truncate">
                           {member.name}
                         </p>
-                        {roomInfo?.admin_id === member.id && (
+                        {member.is_admin && (
                           <AdminBadge />
                         )}
                       </div>
