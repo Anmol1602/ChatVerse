@@ -111,33 +111,67 @@ export async function handler(event, context) {
       try {
         console.log('Fetching members and room info for roomId:', roomId);
         
-        // Get room information
-        room = await sql`
-          SELECT id, name, description, admin_id, type, created_at
-          FROM rooms
-          WHERE id = ${roomId}
-        `;
+        // Get room information first
+        try {
+          room = await sql`
+            SELECT id, name, description, admin_id, type, created_at
+            FROM rooms
+            WHERE id = ${roomId}
+          `;
+          console.log('Room query result:', room);
+        } catch (roomError) {
+          console.error('Error fetching room:', roomError);
+          return {
+            statusCode: 500,
+            headers: {
+              'Access-Control-Allow-Origin': '*',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ error: 'Database error during room fetch', details: roomError.message })
+          };
+        }
+        
+        if (!room || room.length === 0) {
+          return {
+            statusCode: 404,
+            headers: {
+              'Access-Control-Allow-Origin': '*',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ error: 'Room not found' })
+          };
+        }
         
         // Get members with admin status
-        members = await sql`
-          SELECT 
-            u.id,
-            u.name,
-            u.avatar,
-            u.online,
-            u.last_seen,
-            rm.joined_at,
-            CASE WHEN r.admin_id = u.id THEN true ELSE false END as is_admin
-          FROM room_members rm
-          JOIN users u ON rm.user_id = u.id
-          JOIN rooms r ON rm.room_id = r.id
-          WHERE rm.room_id = ${roomId}
-          ORDER BY rm.joined_at ASC
-        `;
-        console.log('Found members:', members);
-        console.log('Found room:', room);
+        try {
+          members = await sql`
+            SELECT 
+              u.id,
+              u.name,
+              u.avatar,
+              u.online,
+              u.last_seen,
+              rm.joined_at,
+              CASE WHEN ${room[0].admin_id} = u.id THEN true ELSE false END as is_admin
+            FROM room_members rm
+            JOIN users u ON rm.user_id = u.id
+            WHERE rm.room_id = ${roomId}
+            ORDER BY rm.joined_at ASC
+          `;
+          console.log('Found members:', members);
+        } catch (memberError) {
+          console.error('Error fetching members:', memberError);
+          return {
+            statusCode: 500,
+            headers: {
+              'Access-Control-Allow-Origin': '*',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ error: 'Database error during members fetch', details: memberError.message })
+          };
+        }
       } catch (error) {
-        console.error('Error fetching members:', error);
+        console.error('General error:', error);
         return {
           statusCode: 500,
           headers: {
