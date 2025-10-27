@@ -7,7 +7,7 @@ const TransferAdminModal = ({ isOpen, onClose, currentAdminId, roomId }) => {
   const [selectedMember, setSelectedMember] = useState(null)
   const [members, setMembers] = useState([])
   const [isLoading, setIsLoading] = useState(false)
-  const { transferAdminRole } = useChatStore()
+  const { transferAdminRole, fetchRoomMembers } = useChatStore()
 
   useEffect(() => {
     if (isOpen && roomId) {
@@ -18,12 +18,11 @@ const TransferAdminModal = ({ isOpen, onClose, currentAdminId, roomId }) => {
   const loadMembers = async () => {
     try {
       setIsLoading(true)
-      const response = await fetch(`/.netlify/functions/room-members?roomId=${roomId}`)
-      const data = await response.json()
+      const result = await fetchRoomMembers(roomId)
       
-      if (data.success) {
+      if (result.success) {
         // Filter out the current admin
-        const filteredMembers = data.members.filter(member => member.id !== currentAdminId)
+        const filteredMembers = result.members.filter(member => parseInt(member.id) !== parseInt(currentAdminId))
         setMembers(filteredMembers)
       }
     } catch (error) {
@@ -100,7 +99,7 @@ const TransferAdminModal = ({ isOpen, onClose, currentAdminId, roomId }) => {
                     key={member.id}
                     onClick={() => setSelectedMember(member)}
                     className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                      selectedMember?.id === member.id
+                      parseInt(selectedMember?.id) === parseInt(member.id)
                         ? 'bg-blue-100 dark:bg-blue-900/20 border-2 border-blue-500'
                         : 'bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 border-2 border-transparent'
                     }`}
@@ -125,7 +124,7 @@ const TransferAdminModal = ({ isOpen, onClose, currentAdminId, roomId }) => {
                           {member.online ? 'Online' : 'Offline'}
                         </p>
                       </div>
-                      {selectedMember?.id === member.id && (
+                      {parseInt(selectedMember?.id) === parseInt(member.id) && (
                         <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
                           <div className="w-2 h-2 bg-white rounded-full"></div>
                         </div>

@@ -162,7 +162,7 @@ export async function handler(event, context) {
           const adminId = room[0].admin_id;
           members = members.map(member => ({
             ...member,
-            is_admin: member.id === adminId
+            is_admin: parseInt(member.id) === parseInt(adminId)
           }));
           
           console.log('Found members:', members);

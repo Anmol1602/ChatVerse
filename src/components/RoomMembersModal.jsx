@@ -133,8 +133,8 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
                 Add Member
               </button>
               
-              {/* Admin-only buttons */}
-              {isAdmin && (
+              {/* Admin-only buttons - only for groups */}
+              {isAdmin && roomInfo?.type === 'group' && (
                 <>
                   <button
                     onClick={handleTransferAdmin}
