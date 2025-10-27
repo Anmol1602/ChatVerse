@@ -64,7 +64,7 @@ exports.handler = async (event, context) => {
 
     // Check if user is a member of the room
     const memberCheck = await sql`
-      SELECT rm.user_id, r.admin_id, r.type
+      SELECT rm.user_id, COALESCE(r.admin_id, r.created_by) as admin_id, r.type
       FROM room_members rm
       JOIN rooms r ON rm.room_id = r.id
       WHERE rm.room_id = ${roomId} AND rm.user_id = ${currentUserId}
