@@ -5,26 +5,32 @@ import { X, AlertTriangle, Trash2 } from 'lucide-react'
 
 const DeleteRoomModal = ({ isOpen, onClose, room }) => {
   const [isDeleting, setIsDeleting] = useState(false)
-  const { deleteRoom } = useChatStore()
+  const { deleteRoom, leaveRoom, user } = useChatStore()
 
   if (!isOpen || !room) return null
 
   const handleDelete = async () => {
     setIsDeleting(true)
     try {
-      const result = await deleteRoom(room.id)
+      const isAdmin = room.admin_id === user?.id
+      const result = isAdmin ? await deleteRoom(room.id) : await leaveRoom(room.id)
       if (result.success) {
         onClose()
       }
     } catch (error) {
-      console.error('Delete room error:', error)
+      console.error('Delete/Leave room error:', error)
     } finally {
       setIsDeleting(false)
     }
   }
 
   const isDM = room.type === 'dm'
+  const isAdmin = room.admin_id === user?.id
   const roomName = isDM ? 'Direct Message' : room.name
+  const actionText = isAdmin ? 'Delete' : 'Leave'
+  const actionDescription = isAdmin 
+    ? 'This will permanently delete the group and all its messages. This action cannot be undone.'
+    : 'You will leave this group. You can rejoin if invited by an admin.'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -49,7 +55,7 @@ const DeleteRoomModal = ({ isOpen, onClose, room }) => {
                 <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
               </div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Delete {isDM ? 'Direct Message' : 'Group Chat'}
+                {actionText} {isDM ? 'Direct Message' : 'Group Chat'}
               </h2>
             </div>
             <button
@@ -62,7 +68,7 @@ const DeleteRoomModal = ({ isOpen, onClose, room }) => {
 
           <div className="mb-6">
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              Are you sure you want to delete <strong>"{roomName}"</strong>?
+              Are you sure you want to {actionText.toLowerCase()} <strong>"{roomName}"</strong>?
             </p>
             
             {isDM ? (
@@ -80,15 +86,15 @@ const DeleteRoomModal = ({ isOpen, onClose, room }) => {
                 </div>
               </div>
             ) : (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+              <div className={`${isAdmin ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' : 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800'} border rounded-lg p-4`}>
                 <div className="flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                  <AlertTriangle className={`w-5 h-5 ${isAdmin ? 'text-red-600 dark:text-red-400' : 'text-orange-600 dark:text-orange-400'} mt-0.5 flex-shrink-0`} />
                   <div>
-                    <p className="text-sm text-red-800 dark:text-red-200 font-medium mb-1">
-                      Group Chat Deletion
+                    <p className={`text-sm ${isAdmin ? 'text-red-800 dark:text-red-200' : 'text-orange-800 dark:text-orange-200'} font-medium mb-1`}>
+                      {isAdmin ? 'Group Chat Deletion' : 'Leave Group'}
                     </p>
-                    <p className="text-sm text-red-700 dark:text-red-300">
-                      This will permanently delete the group chat and all messages. All members will lose access to this room.
+                    <p className={`text-sm ${isAdmin ? 'text-red-700 dark:text-red-300' : 'text-orange-700 dark:text-orange-300'}`}>
+                      {actionDescription}
                     </p>
                   </div>
                 </div>
@@ -107,14 +113,14 @@ const DeleteRoomModal = ({ isOpen, onClose, room }) => {
             <button
               onClick={handleDelete}
               disabled={isDeleting}
-              className="flex-1 px-4 py-2 bg-red-600 text-white hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              className={`flex-1 px-4 py-2 ${isAdmin ? 'bg-red-600 hover:bg-red-700' : 'bg-orange-600 hover:bg-orange-700'} text-white rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2`}
             >
               {isDeleting ? (
                 <div className="spinner w-4 h-4" />
               ) : (
                 <>
                   <Trash2 className="w-4 h-4" />
-                  Delete
+                  {actionText}
                 </>
               )}
             </button>

@@ -196,7 +196,7 @@ const ChatArea = () => {
             <button
               onClick={() => setShowDeleteModal(true)}
               className="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200 transition-colors"
-              title="Delete room"
+              title={currentRoom?.admin_id === user?.id ? "Delete room" : "Leave room"}
             >
               <Trash2 className="w-5 h-5" />
             </button>

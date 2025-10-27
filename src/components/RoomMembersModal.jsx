@@ -1,14 +1,29 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useChatStore } from '../stores/chatStore'
-import { X, Users, UserPlus, UserMinus, Search } from 'lucide-react'
+import { X, Users, UserPlus, UserMinus, Search, Crown, Trash2 } from 'lucide-react'
 import UserSearchModal from './UserSearchModal'
+import AdminBadge from './AdminBadge'
+import ConfirmationModal from './ConfirmationModal'
+import TransferAdminModal from './TransferAdminModal'
 
 const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(false)
   const [showAddUser, setShowAddUser] = useState(false)
-  const { fetchRoomMembers, addMemberToRoom, removeMember } = useChatStore()
+  const [showTransferAdmin, setShowTransferAdmin] = useState(false)
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
+  const [memberToRemove, setMemberToRemove] = useState(null)
+  const [roomInfo, setRoomInfo] = useState(null)
+  const { 
+    fetchRoomMembers, 
+    addMemberToRoom, 
+    removeMember, 
+    transferAdminRole,
+    leaveRoom,
+    user,
+    currentRoom
+  } = useChatStore()
 
   useEffect(() => {
     if (isOpen && roomId) {
@@ -23,7 +38,9 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
     console.log('Load members result:', result)
     if (result.success) {
       setMembers(result.members)
+      setRoomInfo(result.room)
       console.log('Set members:', result.members)
+      console.log('Set room info:', result.room)
     } else {
       console.error('Failed to load members:', result.error)
     }
@@ -46,6 +63,34 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
       alert(result.error || 'Failed to remove member')
     }
   }
+
+  const handleRemoveMemberClick = (member) => {
+    setMemberToRemove(member)
+    setShowRemoveConfirm(true)
+  }
+
+  const confirmRemoveMember = async () => {
+    if (memberToRemove) {
+      await handleRemoveMember(memberToRemove.id)
+      setShowRemoveConfirm(false)
+      setMemberToRemove(null)
+    }
+  }
+
+  const handleTransferAdmin = () => {
+    setShowTransferAdmin(true)
+  }
+
+  const handleLeaveGroup = async () => {
+    const result = await leaveRoom(roomId)
+    if (result.success) {
+      onClose()
+    }
+  }
+
+  // Check if current user is admin
+  const isAdmin = roomInfo?.admin_id === user?.id
+  const isCurrentUser = (memberId) => memberId === user?.id
 
   if (!isOpen) return null
 
@@ -87,6 +132,20 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
                 <UserPlus className="w-4 h-4" />
                 Add Member
               </button>
+              
+              {/* Admin-only buttons */}
+              {isAdmin && (
+                <>
+                  <button
+                    onClick={handleTransferAdmin}
+                    className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    title="Transfer admin role"
+                  >
+                    <Crown className="w-4 h-4" />
+                    Transfer Admin
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -124,9 +183,14 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
                     </div>
                     
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 dark:text-white truncate">
-                        {member.name}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-gray-900 dark:text-white truncate">
+                          {member.name}
+                        </p>
+                        {roomInfo?.admin_id === member.id && (
+                          <AdminBadge />
+                        )}
+                      </div>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
                         {member.online ? (
                           <span className="flex items-center gap-1">
@@ -139,13 +203,29 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
                       </p>
                     </div>
 
-                    <button
-                      onClick={() => handleRemoveMember(member.id)}
-                      className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-colors"
-                      title="Remove member"
-                    >
-                      <UserMinus className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      {/* Admin management buttons - only show for admin */}
+                      {isAdmin && !isCurrentUser(member.id) && (
+                        <button
+                          onClick={() => handleRemoveMemberClick(member)}
+                          className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-colors"
+                          title="Remove member"
+                        >
+                          <UserMinus className="w-4 h-4" />
+                        </button>
+                      )}
+                      
+                      {/* Leave group button for current user */}
+                      {isCurrentUser(member.id) && (
+                        <button
+                          onClick={handleLeaveGroup}
+                          className="p-2 text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900 rounded-lg transition-colors"
+                          title="Leave group"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </motion.div>
                 ))}
               </div>
@@ -161,6 +241,24 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
           onUserSelect={handleAddMember}
         />
       )}
+
+      {/* Confirmation modals */}
+      <ConfirmationModal
+        isOpen={showRemoveConfirm}
+        onClose={() => setShowRemoveConfirm(false)}
+        onConfirm={confirmRemoveMember}
+        title="Remove Member"
+        message={`Are you sure you want to remove ${memberToRemove?.name} from this group?`}
+        confirmText="Remove"
+        type="danger"
+      />
+
+      <TransferAdminModal
+        isOpen={showTransferAdmin}
+        onClose={() => setShowTransferAdmin(false)}
+        currentAdminId={user?.id}
+        roomId={roomId}
+      />
     </>
   )
 }

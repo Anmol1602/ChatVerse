@@ -107,9 +107,18 @@ export async function handler(event, context) {
         };
       }
 
-      let members;
+      let members, room;
       try {
-        console.log('Fetching members for roomId:', roomId);
+        console.log('Fetching members and room info for roomId:', roomId);
+        
+        // Get room information
+        room = await sql`
+          SELECT id, name, description, admin_id, type, created_at
+          FROM rooms
+          WHERE id = ${roomId}
+        `;
+        
+        // Get members with admin status
         members = await sql`
           SELECT 
             u.id,
@@ -117,13 +126,16 @@ export async function handler(event, context) {
             u.avatar,
             u.online,
             u.last_seen,
-            rm.joined_at
+            rm.joined_at,
+            CASE WHEN r.admin_id = u.id THEN true ELSE false END as is_admin
           FROM room_members rm
           JOIN users u ON rm.user_id = u.id
+          JOIN rooms r ON rm.room_id = r.id
           WHERE rm.room_id = ${roomId}
           ORDER BY rm.joined_at ASC
         `;
         console.log('Found members:', members);
+        console.log('Found room:', room);
       } catch (error) {
         console.error('Error fetching members:', error);
         return {
@@ -142,7 +154,11 @@ export async function handler(event, context) {
           'Access-Control-Allow-Origin': '*',
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ members })
+        body: JSON.stringify({ 
+          success: true,
+          members,
+          room: room[0] || null
+        })
       };
     }
 
@@ -222,7 +238,7 @@ export async function handler(event, context) {
 
     if (event.httpMethod === 'DELETE') {
       // Remove member from room
-      const { roomId, userId } = JSON.parse(event.body || '{}');
+      const { roomId, userId } = event.queryStringParameters || {};
       
       if (!roomId || !userId) {
         return {
@@ -235,20 +251,47 @@ export async function handler(event, context) {
         };
       }
 
-      // Check if current user is a member of the room
-      const membership = await sql`
-        SELECT 1 FROM room_members 
-        WHERE room_id = ${roomId} AND user_id = ${currentUserId}
+      // Check if current user is admin of the room
+      const roomCheck = await sql`
+        SELECT admin_id FROM rooms WHERE id = ${roomId}
       `;
 
-      if (!membership || membership.length === 0) {
+      if (roomCheck.length === 0) {
+        return {
+          statusCode: 404,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ error: 'Room not found' })
+        };
+      }
+
+      if (roomCheck[0].admin_id !== currentUserId) {
         return {
           statusCode: 403,
           headers: {
             'Access-Control-Allow-Origin': '*',
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ error: 'Not a member of this room' })
+          body: JSON.stringify({ error: 'Only admin can remove members' })
+        };
+      }
+
+      // Check if user to be removed is a member
+      const memberCheck = await sql`
+        SELECT user_id FROM room_members 
+        WHERE room_id = ${roomId} AND user_id = ${userId}
+      `;
+
+      if (memberCheck.length === 0) {
+        return {
+          statusCode: 404,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ error: 'User is not a member of this room' })
         };
       }
 
@@ -264,7 +307,10 @@ export async function handler(event, context) {
           'Access-Control-Allow-Origin': '*',
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ message: 'User removed from room successfully' })
+        body: JSON.stringify({ 
+          success: true,
+          message: 'User removed from room successfully' 
+        })
       };
     }
 

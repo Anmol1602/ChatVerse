@@ -9,6 +9,7 @@ import MessageForward from './MessageForward'
 import EmojiPicker from './EmojiPicker'
 import ReactionDisplay from './ReactionDisplay'
 import ReactionButton from './ReactionButton'
+import AdminBadge from './AdminBadge'
 
 const MessageBubble = ({ message, isOwn, showAvatar = false, showTime = true }) => {
   const { deleteMessage, toggleReaction, fetchReactions } = useChatStore()
@@ -225,9 +226,14 @@ const MessageBubble = ({ message, isOwn, showAvatar = false, showTime = true }) 
       
       <div className={`flex flex-col max-w-[75%] ${isOwn ? 'items-end' : 'items-start'}`}>
         {showAvatar && !isOwn && (
-          <span className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-            {message.user_name}
-          </span>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {message.user_name}
+            </span>
+            {message.is_admin && (
+              <AdminBadge className="text-xs" />
+            )}
+          </div>
         )}
         
         <div

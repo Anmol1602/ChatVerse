@@ -1003,6 +1003,66 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  // Admin management functions
+  removeMember: async (roomId, userId) => {
+    try {
+      const response = await api.delete(`/room-members?roomId=${roomId}&userId=${userId}`)
+      if (response.data.success) {
+        toast.success('Member removed successfully')
+        // Refresh rooms to update member counts
+        get().fetchRooms()
+        return { success: true }
+      }
+      return { success: false, error: response.data.error }
+    } catch (error) {
+      console.error('Remove member error:', error)
+      toast.error('Failed to remove member')
+      return { success: false, error: error.message }
+    }
+  },
+
+  transferAdminRole: async (roomId, newAdminId) => {
+    try {
+      const response = await api.post('/room-members/transfer-admin', {
+        roomId,
+        newAdminId
+      })
+      if (response.data.success) {
+        toast.success('Admin role transferred successfully')
+        // Refresh rooms to update admin status
+        get().fetchRooms()
+        return { success: true }
+      }
+      return { success: false, error: response.data.error }
+    } catch (error) {
+      console.error('Transfer admin error:', error)
+      toast.error('Failed to transfer admin role')
+      return { success: false, error: error.message }
+    }
+  },
+
+  leaveRoom: async (roomId) => {
+    try {
+      const response = await api.delete(`/room-members/leave?roomId=${roomId}`)
+      if (response.data.success) {
+        toast.success('You left the group')
+        // Remove room from current rooms list
+        const { rooms, currentRoom } = get()
+        const updatedRooms = rooms.filter(room => room.id !== roomId)
+        set({ 
+          rooms: updatedRooms,
+          currentRoom: currentRoom?.id === roomId ? null : currentRoom
+        })
+        return { success: true }
+      }
+      return { success: false, error: response.data.error }
+    } catch (error) {
+      console.error('Leave room error:', error)
+      toast.error('Failed to leave group')
+      return { success: false, error: error.message }
+    }
+  },
+
   // Forward message
   forwardMessage: async (messageId, targetRoomId) => {
     try {
