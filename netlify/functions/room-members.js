@@ -142,7 +142,7 @@ export async function handler(event, context) {
           };
         }
         
-        // Get members with admin status
+        // Get members first, then add admin status
         try {
           members = await sql`
             SELECT 
@@ -151,13 +151,20 @@ export async function handler(event, context) {
               u.avatar,
               u.online,
               u.last_seen,
-              rm.joined_at,
-              CASE WHEN ${room[0].admin_id} = u.id THEN true ELSE false END as is_admin
+              rm.joined_at
             FROM room_members rm
             JOIN users u ON rm.user_id = u.id
             WHERE rm.room_id = ${roomId}
             ORDER BY rm.joined_at ASC
           `;
+          
+          // Add admin status to each member
+          const adminId = room[0].admin_id;
+          members = members.map(member => ({
+            ...member,
+            is_admin: member.id === adminId
+          }));
+          
           console.log('Found members:', members);
         } catch (memberError) {
           console.error('Error fetching members:', memberError);
