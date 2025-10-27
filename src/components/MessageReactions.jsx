@@ -14,7 +14,7 @@ const REACTION_EMOJIS = {
 
 const MessageReactions = ({ message, isOwn }) => {
   const [showPicker, setShowPicker] = useState(false)
-  const { addReaction, removeReaction } = useChatStore()
+  const { addReaction, removeReaction, user } = useChatStore()
 
   const handleReactionClick = async (emoji) => {
     const existingReaction = message.reactions?.find(r => r.emoji === emoji)
@@ -36,14 +36,14 @@ const MessageReactions = ({ message, isOwn }) => {
 
   const getUserReaction = () => {
     if (!message.reactions) return null
-    return message.reactions.find(r => r.user_id === useChatStore.getState().user?.id)
+    return message.reactions.find(r => r.user_id === user?.id)
   }
 
   const renderReactionBubble = (emoji, count) => {
     if (count === 0) return null
     
     const userReacted = message.reactions?.some(r => 
-      r.emoji === emoji && r.user_id === useChatStore.getState().user?.id
+      r.emoji === emoji && r.user_id === user?.id
     )
 
     return (

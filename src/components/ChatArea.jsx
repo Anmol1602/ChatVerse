@@ -22,7 +22,8 @@ const ChatArea = () => {
     refreshMessages,
     markRoomAsRead,
     refreshReactionsOnDemand,
-    toggleReaction
+    toggleReaction,
+    user
   } = useChatStore()
   
   const [isLoading, setIsLoading] = useState(false)
@@ -239,7 +240,7 @@ const ChatArea = () => {
                 }
                 
                 const message = item
-                const isOwn = message.user_id === useChatStore.getState().user?.id
+                const isOwn = message.user_id === user?.id
                 const prevMessage = messages[message.index - 1]
                 const showAvatar = !prevMessage || prevMessage.user_id !== message.user_id
 
