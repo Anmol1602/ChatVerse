@@ -52,8 +52,8 @@ const EmojiPicker = ({ isOpen, onClose, onEmojiSelect, position = { x: 0, y: 0 }
         transition={{ duration: 0.2, ease: "easeOut" }}
         className="absolute z-50 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-3"
         style={{
-          left: position.x,
-          top: position.y - 60,
+          left: Math.max(10, position.x),
+          top: position.y,
           transform: 'translateX(-50%)'
         }}
       >

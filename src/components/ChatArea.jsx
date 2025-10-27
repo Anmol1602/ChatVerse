@@ -10,6 +10,7 @@ import { MessageCircle, Users, RefreshCw, Settings, Trash2, Search } from 'lucid
 import RoomMembersModal from './RoomMembersModal'
 import DeleteRoomModal from './DeleteRoomModal'
 import DateSeparator from './DateSeparator'
+import EmojiPicker from './EmojiPicker'
 
 const ChatArea = () => {
   const {
@@ -20,13 +21,16 @@ const ChatArea = () => {
     typingUsers,
     refreshMessages,
     markRoomAsRead,
-    refreshReactionsOnDemand
+    refreshReactionsOnDemand,
+    toggleReaction
   } = useChatStore()
   
   const [isLoading, setIsLoading] = useState(false)
   const [showRoomMembers, setShowRoomMembers] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showMessageSearch, setShowMessageSearch] = useState(false)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [emojiPickerPosition, setEmojiPickerPosition] = useState({ x: 0, y: 0 })
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
 
@@ -77,6 +81,39 @@ const ChatArea = () => {
     })
     
     return grouped
+  }
+
+  // Handle emoji picker click
+  const handleEmojiClick = (event) => {
+    event.preventDefault()
+    const rect = event.currentTarget.getBoundingClientRect()
+    const viewportWidth = window.innerWidth
+    const pickerWidth = 300 // Approximate width of the emoji picker
+    
+    // Calculate position to keep picker within viewport
+    let x = rect.left - (pickerWidth / 2)
+    if (x < 10) x = 10
+    if (x + pickerWidth > viewportWidth - 10) x = viewportWidth - pickerWidth - 10
+    
+    setEmojiPickerPosition({
+      x: x,
+      y: rect.bottom + 10
+    })
+    setShowEmojiPicker(true)
+    console.log('Emoji picker opened at position:', { x, y: rect.bottom + 10 })
+  }
+
+  // Handle emoji selection for latest message
+  const handleEmojiSelect = async (emoji) => {
+    console.log('Emoji selected:', emoji)
+    if (messages.length > 0) {
+      const latestMessage = messages[messages.length - 1]
+      console.log('Adding reaction to message:', latestMessage.id)
+      await toggleReaction(latestMessage.id, emoji)
+    } else {
+      console.log('No messages to react to')
+    }
+    setShowEmojiPicker(false)
   }
 
 
@@ -150,11 +187,11 @@ const ChatArea = () => {
               <RefreshCw className="w-5 h-5" />
             </button>
             <button
-              onClick={() => refreshReactionsOnDemand(currentRoom.id)}
-              className="p-2 text-yellow-500 hover:text-yellow-700 dark:text-yellow-400 dark:hover:text-yellow-200 transition-colors"
-              title="Refresh reactions"
+              onClick={handleEmojiClick}
+              className="p-2 text-yellow-500 hover:text-yellow-700 dark:text-yellow-400 dark:hover:text-yellow-200 transition-colors hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded-lg"
+              title="Quick react to latest message"
             >
-              😃
+              <span className="text-lg">😃</span>
             </button>
             <button
               onClick={() => setShowDeleteModal(true)}
@@ -257,6 +294,14 @@ const ChatArea = () => {
         isOpen={showMessageSearch}
         onClose={() => setShowMessageSearch(false)}
         roomId={currentRoom.id}
+      />
+
+      {/* Emoji picker for quick reactions */}
+      <EmojiPicker
+        isOpen={showEmojiPicker}
+        onClose={() => setShowEmojiPicker(false)}
+        onEmojiSelect={handleEmojiSelect}
+        position={emojiPickerPosition}
       />
         
     </div>
