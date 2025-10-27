@@ -64,7 +64,7 @@ exports.handler = async (event, context) => {
 
     // Check if current user is admin of the room
     const roomCheck = await sql`
-      SELECT COALESCE(admin_id, created_by) as admin_id FROM rooms WHERE id = ${roomId}
+      SELECT created_by as admin_id FROM rooms WHERE id = ${roomId}
     `
 
     if (roomCheck.length === 0) {

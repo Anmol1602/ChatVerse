@@ -114,7 +114,7 @@ export async function handler(event, context) {
         // Get room information first
         try {
           room = await sql`
-            SELECT id, name, description, COALESCE(admin_id, created_by) as admin_id, type, created_at
+            SELECT id, name, description, created_by as admin_id, type, created_at
             FROM rooms
             WHERE id = ${roomId}
           `;
@@ -294,7 +294,7 @@ export async function handler(event, context) {
 
       // Check if current user is admin of the room
       const roomCheck = await sql`
-        SELECT COALESCE(admin_id, created_by) as admin_id FROM rooms WHERE id = ${roomId}
+        SELECT created_by as admin_id FROM rooms WHERE id = ${roomId}
       `;
 
       if (roomCheck.length === 0) {
