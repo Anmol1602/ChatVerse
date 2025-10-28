@@ -5,8 +5,6 @@ const ReactionDisplay = ({ reactions, onReactionClick, isOverlay = false, classN
   // Add comprehensive null checks
   if (!reactions || !Array.isArray(reactions) || reactions.length === 0) return null;
   
-  // Debug logging
-  console.log('ReactionDisplay - reactions data:', reactions);
 
   return (
     <motion.div

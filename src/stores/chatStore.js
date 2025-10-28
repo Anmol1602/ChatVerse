@@ -223,8 +223,6 @@ export const useChatStore = create((set, get) => ({
   addReaction: async (messageId, emoji) => {
     try {
       const response = await api.post('/reactions', { messageId, emoji })
-      console.log('Add reaction response:', response.data)
-      console.log('Add reaction - messageId:', messageId, 'emoji:', emoji)
       
       if (response.data.success) {
         // Update local state immediately for better UX
@@ -366,7 +364,6 @@ export const useChatStore = create((set, get) => ({
   fetchReactions: async (messageId) => {
     try {
       const response = await api.get(`/reactions?messageId=${messageId}`)
-      console.log('Fetch reactions response:', response.data)
       
       if (response.data.success) {
         // Update local state
@@ -478,7 +475,6 @@ export const useChatStore = create((set, get) => ({
         uniqueMessages.map(async (message) => {
           try {
             const reactionResponse = await api.get(`/reactions?messageId=${message.id}`)
-            console.log(`Reactions API response for message ${message.id}:`, reactionResponse.data)
             if (reactionResponse.data.success) {
               return {
                 ...message,
