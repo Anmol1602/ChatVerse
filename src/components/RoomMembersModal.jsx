@@ -109,11 +109,7 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
 
   // Check if current user is admin
   const isAdmin = parseInt(roomInfo?.admin_id) === parseInt(user?.id)
-  const isCurrentUser = (memberId) => {
-    const result = parseInt(memberId) === parseInt(user?.id)
-    console.log('isCurrentUser check:', { memberId, userId: user?.id, result })
-    return result
-  }
+  const isCurrentUser = (memberId) => parseInt(memberId) === parseInt(user?.id)
 
   if (!isOpen) return null
 
@@ -238,21 +234,17 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
                         </button>
                       )}
                       
-                      {/* Leave group button for current user - TEMPORARILY SHOW FOR ALL */}
-                      <button
-                        onClick={handleLeaveGroup}
-                        className="p-2 text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900 rounded-lg transition-colors"
-                        title={isCurrentUser(member.id) ? (isAdmin ? "Transfer admin role first" : "Leave group") : "Leave group (debug)"}
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                      
-                      {/* Debug info - remove after testing */}
-                      {process.env.NODE_ENV === 'development' && (
-                        <div className="text-xs text-gray-500">
-                          {member.id} vs {user?.id} = {isCurrentUser(member.id) ? 'true' : 'false'}
-                        </div>
+                      {/* Leave group button for current user */}
+                      {isCurrentUser(member.id) && (
+                        <button
+                          onClick={handleLeaveGroup}
+                          className="p-2 text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900 rounded-lg transition-colors"
+                          title={isAdmin ? "Transfer admin role first" : "Leave group"}
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
                       )}
+                      
                     </div>
                   </motion.div>
                 ))}
