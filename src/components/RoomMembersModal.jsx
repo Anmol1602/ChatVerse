@@ -238,16 +238,14 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
                         </button>
                       )}
                       
-                      {/* Leave group button for current user */}
-                      {isCurrentUser(member.id) && (
-                        <button
-                          onClick={handleLeaveGroup}
-                          className="p-2 text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900 rounded-lg transition-colors"
-                          title={isAdmin ? "Transfer admin role first" : "Leave group"}
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      )}
+                      {/* Leave group button for current user - TEMPORARILY SHOW FOR ALL */}
+                      <button
+                        onClick={handleLeaveGroup}
+                        className="p-2 text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900 rounded-lg transition-colors"
+                        title={isCurrentUser(member.id) ? (isAdmin ? "Transfer admin role first" : "Leave group") : "Leave group (debug)"}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                       
                       {/* Debug info - remove after testing */}
                       {process.env.NODE_ENV === 'development' && (
