@@ -47,8 +47,7 @@ exports.handler = async (event, context) => {
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
-      console.log('Leave room request - decoded token:', decoded)
-    } catch (error) {
+      } catch (error) {
       console.error('Leave room - Token verification failed:', error);
       return {
         statusCode: 401,
@@ -61,12 +60,9 @@ exports.handler = async (event, context) => {
     }
     
     const currentUserId = decoded.id
-    console.log('Leave room request - currentUserId:', currentUserId)
 
     // Get roomId from query parameters
     const { roomId } = event.queryStringParameters || {}
-    console.log('Leave room request - roomId:', roomId)
-    console.log('Leave room request - queryStringParameters:', event.queryStringParameters)
 
     if (!roomId) {
       return {

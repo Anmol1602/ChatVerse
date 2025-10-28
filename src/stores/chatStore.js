@@ -1040,8 +1040,6 @@ export const useChatStore = create((set, get) => ({
       return { success: false, error: response.data.error }
     } catch (error) {
       console.error('Transfer admin error:', error)
-      console.error('Transfer admin error response:', error.response?.data)
-      console.error('Transfer admin error status:', error.response?.status)
       toast.error('Failed to transfer admin role')
       return { success: false, error: error.message }
     }
@@ -1064,8 +1062,6 @@ export const useChatStore = create((set, get) => ({
       return { success: false, error: response.data.error }
     } catch (error) {
       console.error('Leave room error:', error)
-      console.error('Leave room error response:', error.response?.data)
-      console.error('Leave room error status:', error.response?.status)
       toast.error('Failed to leave group')
       return { success: false, error: error.message }
     }

@@ -47,8 +47,7 @@ exports.handler = async (event, context) => {
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
-      console.log('Transfer admin request - decoded token:', decoded)
-    } catch (error) {
+      } catch (error) {
       console.error('Transfer admin - Token verification failed:', error);
       return {
         statusCode: 401,
@@ -61,13 +60,9 @@ exports.handler = async (event, context) => {
     }
     
     const currentUserId = decoded.id
-    console.log('Transfer admin request - currentUserId:', currentUserId)
 
     // Parse request body
     const { roomId, newAdminId } = JSON.parse(event.body)
-    console.log('Transfer admin request - roomId:', roomId)
-    console.log('Transfer admin request - newAdminId:', newAdminId)
-    console.log('Transfer admin request - event.body:', event.body)
 
     if (!roomId || !newAdminId) {
       return {
@@ -85,10 +80,6 @@ exports.handler = async (event, context) => {
     const roomCheck = await sql`
       SELECT created_by as admin_id FROM rooms WHERE id = ${roomId}
     `
-    
-    console.log('Transfer admin - roomCheck:', roomCheck)
-    console.log('Transfer admin - currentUserId:', currentUserId)
-    console.log('Transfer admin - admin_id from room:', roomCheck[0]?.admin_id)
 
     if (roomCheck.length === 0) {
       return {

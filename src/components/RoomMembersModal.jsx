@@ -36,16 +36,10 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
 
   const loadMembers = async () => {
     setLoading(true)
-    console.log('Loading members for roomId:', roomId)
     const result = await fetchRoomMembers(roomId)
-    console.log('Load members result:', result)
     if (result.success) {
       setMembers(result.members)
       setRoomInfo(result.room)
-      console.log('Set members:', result.members)
-      console.log('Set room info:', result.room)
-      console.log('Room admin_id:', result.room?.admin_id)
-      console.log('User id:', user?.id)
     } else {
       console.error('Failed to load members:', result.error)
     }
@@ -121,34 +115,7 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
 
   // Check if current user is admin
   const isAdmin = parseInt(roomInfo?.admin_id) === parseInt(user?.id)
-  const isCurrentUser = (memberId) => {
-    const result = parseInt(memberId) === parseInt(user?.id)
-    console.log('isCurrentUser check:', {
-      memberId,
-      user_id: user?.id,
-      memberId_type: typeof memberId,
-      user_id_type: typeof user?.id,
-      memberId_parsed: parseInt(memberId),
-      user_id_parsed: parseInt(user?.id),
-      result
-    })
-    return result
-  }
-  
-  // Debug logging
-  console.log('RoomMembersModal Debug:', {
-    roomInfo,
-    user,
-    isAdmin,
-    admin_id: roomInfo?.admin_id,
-    user_id: user?.id,
-    members: members.length,
-    admin_id_type: typeof roomInfo?.admin_id,
-    user_id_type: typeof user?.id,
-    admin_id_parsed: parseInt(roomInfo?.admin_id),
-    user_id_parsed: parseInt(user?.id),
-    comparison_result: parseInt(roomInfo?.admin_id) === parseInt(user?.id)
-  })
+  const isCurrentUser = (memberId) => parseInt(memberId) === parseInt(user?.id)
 
   if (!isOpen) return null
 
@@ -266,11 +233,6 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
                     </div>
 
                     <div className="flex items-center gap-1">
-                      {/* DEBUG: Show all buttons temporarily */}
-                      <div className="text-xs text-gray-500 mr-2">
-                        Admin: {isAdmin ? 'Yes' : 'No'} | Current: {isCurrentUser(member.id) ? 'Yes' : 'No'} | Member Admin: {member.is_admin ? 'Yes' : 'No'}
-                      </div>
-                      
                       {/* Admin management buttons - only show for admin */}
                       {isAdmin && !isCurrentUser(member.id) && !member.is_admin && (
                         <button
