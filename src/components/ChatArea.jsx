@@ -6,7 +6,7 @@ import MessageInput from './MessageInput'
 import TypingIndicator from './TypingIndicator'
 import MessageSearch from './MessageSearch'
 import EnhancedLoadingSpinner from './EnhancedLoadingSpinner'
-import { MessageCircle, Users, RefreshCw, Settings, Trash2, Search } from 'lucide-react'
+import { MessageCircle, Users, RefreshCw, Trash2, Search } from 'lucide-react'
 import RoomMembersModal from './RoomMembersModal'
 import DeleteRoomModal from './DeleteRoomModal'
 import DateSeparator from './DateSeparator'
@@ -178,7 +178,7 @@ const ChatArea = () => {
               className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
               title="Manage room members"
             >
-              <Settings className="w-5 h-5" />
+              <Users className="w-5 h-5" />
             </button>
             <button
               onClick={() => refreshMessages(currentRoom.id)}
