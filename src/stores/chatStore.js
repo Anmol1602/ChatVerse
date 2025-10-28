@@ -344,11 +344,15 @@ export const useChatStore = create((set, get) => ({
   },
 
   toggleReaction: async (messageId, emoji) => {
+    alert(`DEBUG: toggleReaction called with messageId=${messageId}, emoji=${emoji}`)
     console.log('toggleReaction called:', { messageId, emoji })
     const { messages } = get()
     const message = messages.find(msg => msg.id === messageId)
     
-    if (!message) return { success: false, error: 'Message not found' }
+    if (!message) {
+      alert('DEBUG: Message not found!')
+      return { success: false, error: 'Message not found' }
+    }
     
     const existingReaction = message.reactions?.find(r => r.emoji === emoji)
     const currentUserId = JSON.parse(localStorage.getItem('user'))?.id
@@ -361,9 +365,11 @@ export const useChatStore = create((set, get) => ({
     console.log('toggleReaction - userReacted:', userReacted)
     
     if (userReacted) {
+      alert('DEBUG: Calling removeReaction')
       console.log('toggleReaction - calling removeReaction')
       return await get().removeReaction(messageId, emoji)
     } else {
+      alert('DEBUG: Calling addReaction')
       console.log('toggleReaction - calling addReaction')
       return await get().addReaction(messageId, emoji)
     }
@@ -620,62 +626,6 @@ export const useChatStore = create((set, get) => ({
       await api.put('/messages', { messageIds })
     } catch (error) {
       console.error('Failed to mark messages as read:', error)
-    }
-  },
-
-  // Message reactions
-  addReaction: async (messageId, emoji) => {
-    try {
-      const response = await api.post('/reactions', {
-        messageId,
-        emoji
-      })
-
-      if (response.data.reaction) {
-        // Update message in local state
-        set(state => ({
-          messages: state.messages.map(msg => 
-            msg.id === messageId 
-              ? {
-                  ...msg,
-                  reactions: [...(msg.reactions || []), response.data.reaction]
-                }
-              : msg
-          )
-        }))
-        return { success: true, reaction: response.data.reaction }
-      }
-    } catch (error) {
-      console.error('Failed to add reaction:', error)
-      return { success: false, error: error.response?.data?.error || 'Failed to add reaction' }
-    }
-  },
-
-  removeReaction: async (messageId, emoji) => {
-    try {
-      await api.delete('/reactions', {
-        messageId,
-        emoji
-      })
-
-      // Update message in local state
-      set(state => ({
-        messages: state.messages.map(msg => 
-          msg.id === messageId 
-            ? {
-                ...msg,
-                reactions: (msg.reactions || []).filter(r => 
-                  !(r.emoji === emoji && r.user_id === get().user?.id)
-                )
-              }
-            : msg
-        )
-      }))
-
-      return { success: true }
-    } catch (error) {
-      console.error('Failed to remove reaction:', error)
-      return { success: false, error: error.response?.data?.error || 'Failed to remove reaction' }
     }
   },
 
