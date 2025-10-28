@@ -88,6 +88,8 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
   }
 
   const handleLeaveGroup = async () => {
+    console.log('Leave group clicked, isAdmin:', isAdmin, 'user:', user?.id, 'admin_id:', roomInfo?.admin_id)
+    
     // If current user is admin, force them to transfer admin role first
     if (isAdmin) {
       alert('As an admin, you must transfer your admin role to another member before leaving the group.')
@@ -96,6 +98,7 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
     }
     
     // Show confirmation for non-admin members
+    console.log('Showing leave confirmation modal')
     setShowLeaveConfirm(true)
   }
 
