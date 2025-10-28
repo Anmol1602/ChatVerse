@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useChatStore } from '../stores/chatStore'
 import { useAuthStore } from '../stores/authStore'
-import { X, Users, UserPlus, UserMinus, Search, Crown, Trash2 } from 'lucide-react'
+import { X, Users, UserPlus, UserMinus, Search, Crown, Trash2, LogOut } from 'lucide-react'
 import UserSearchModal from './UserSearchModal'
 import AdminBadge from './AdminBadge'
 import ConfirmationModal from './ConfirmationModal'
@@ -251,7 +251,7 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
                           className="p-2 text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900 rounded-lg transition-colors"
                           title={isAdmin ? "Transfer admin role first" : "Leave group"}
                         >
-                          <X className="w-4 h-4" />
+                          <LogOut className="w-4 h-4" />
                         </button>
                       )}
                       
