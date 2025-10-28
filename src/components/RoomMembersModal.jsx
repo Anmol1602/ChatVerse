@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useChatStore } from '../stores/chatStore'
+import { useAuthStore } from '../stores/authStore'
 import { X, Users, UserPlus, UserMinus, Search, Crown, Trash2 } from 'lucide-react'
 import UserSearchModal from './UserSearchModal'
 import AdminBadge from './AdminBadge'
@@ -22,9 +23,10 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
     removeMember, 
     transferAdminRole,
     leaveRoom,
-    user,
     currentRoom
   } = useChatStore()
+  
+  const { user } = useAuthStore()
 
   useEffect(() => {
     if (isOpen && roomId) {

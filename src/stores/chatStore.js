@@ -949,7 +949,11 @@ export const useChatStore = create((set, get) => ({
       console.log('Fetching room members for roomId:', roomId)
       const response = await api.get(`/room-members?roomId=${roomId}`)
       console.log('Room members response:', response.data)
-      return { success: true, members: response.data.members }
+      return { 
+        success: true, 
+        members: response.data.members,
+        room: response.data.room
+      }
     } catch (error) {
       console.error('Fetch room members error:', error)
       const message = error.response?.data?.error || 'Failed to fetch room members'
