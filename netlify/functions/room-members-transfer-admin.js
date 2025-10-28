@@ -47,8 +47,14 @@ exports.handler = async (event, context) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
     const currentUserId = decoded.id
 
+    console.log('Transfer admin request - decoded token:', decoded)
+    console.log('Transfer admin request - currentUserId:', currentUserId)
+
     // Parse request body
     const { roomId, newAdminId } = JSON.parse(event.body)
+    console.log('Transfer admin request - roomId:', roomId)
+    console.log('Transfer admin request - newAdminId:', newAdminId)
+    console.log('Transfer admin request - event.body:', event.body)
 
     if (!roomId || !newAdminId) {
       return {

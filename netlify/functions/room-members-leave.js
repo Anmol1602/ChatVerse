@@ -47,8 +47,13 @@ exports.handler = async (event, context) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
     const currentUserId = decoded.id
 
+    console.log('Leave room request - decoded token:', decoded)
+    console.log('Leave room request - currentUserId:', currentUserId)
+
     // Get roomId from query parameters
     const { roomId } = event.queryStringParameters || {}
+    console.log('Leave room request - roomId:', roomId)
+    console.log('Leave room request - queryStringParameters:', event.queryStringParameters)
 
     if (!roomId) {
       return {
