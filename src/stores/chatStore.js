@@ -344,6 +344,7 @@ export const useChatStore = create((set, get) => ({
   },
 
   toggleReaction: async (messageId, emoji) => {
+    console.log('toggleReaction called:', { messageId, emoji })
     const { messages } = get()
     const message = messages.find(msg => msg.id === messageId)
     
@@ -352,12 +353,18 @@ export const useChatStore = create((set, get) => ({
     const existingReaction = message.reactions?.find(r => r.emoji === emoji)
     const currentUserId = JSON.parse(localStorage.getItem('user'))?.id
     
+    console.log('toggleReaction - existingReaction:', existingReaction)
+    console.log('toggleReaction - currentUserId:', currentUserId)
+    
     // Check if current user already reacted with this emoji
     const userReacted = existingReaction?.users?.some(u => u.id === currentUserId)
+    console.log('toggleReaction - userReacted:', userReacted)
     
     if (userReacted) {
+      console.log('toggleReaction - calling removeReaction')
       return await get().removeReaction(messageId, emoji)
     } else {
+      console.log('toggleReaction - calling addReaction')
       return await get().addReaction(messageId, emoji)
     }
   },
