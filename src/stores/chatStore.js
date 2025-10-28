@@ -1027,7 +1027,7 @@ export const useChatStore = create((set, get) => ({
 
   transferAdminRole: async (roomId, newAdminId) => {
     try {
-      const response = await api.post('/room-members/transfer-admin', {
+      const response = await api.post('/transfer-admin', {
         roomId,
         newAdminId
       })
@@ -1049,7 +1049,7 @@ export const useChatStore = create((set, get) => ({
 
   leaveRoom: async (roomId) => {
     try {
-      const response = await api.delete(`/room-members/leave?roomId=${roomId}`)
+      const response = await api.delete(`/leave-room?roomId=${roomId}`)
       if (response.data.success) {
         toast.success('You left the group')
         // Remove room from current rooms list
