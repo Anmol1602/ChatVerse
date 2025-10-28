@@ -109,7 +109,11 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
 
   // Check if current user is admin
   const isAdmin = parseInt(roomInfo?.admin_id) === parseInt(user?.id)
-  const isCurrentUser = (memberId) => parseInt(memberId) === parseInt(user?.id)
+  const isCurrentUser = (memberId) => {
+    const result = parseInt(memberId) === parseInt(user?.id)
+    console.log('isCurrentUser check:', { memberId, userId: user?.id, result })
+    return result
+  }
 
   if (!isOpen) return null
 
@@ -243,6 +247,13 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
                         >
                           <X className="w-4 h-4" />
                         </button>
+                      )}
+                      
+                      {/* Debug info - remove after testing */}
+                      {process.env.NODE_ENV === 'development' && (
+                        <div className="text-xs text-gray-500">
+                          {member.id} vs {user?.id} = {isCurrentUser(member.id) ? 'true' : 'false'}
+                        </div>
                       )}
                     </div>
                   </motion.div>
