@@ -237,7 +237,16 @@ export const useChatStore = create((set, get) => ({
                 ...msg,
                 reactions: msg.reactions.map(r => 
                   r.emoji === emoji 
-                    ? { ...r, count: r.count + 1, users: [...r.users, response.data.reaction] }
+                    ? { 
+                        ...r, 
+                        count: r.count + 1, 
+                        users: [...r.users, {
+                          id: response.data.reaction.user_id,
+                          name: response.data.reaction.user_name,
+                          avatar: response.data.reaction.user_avatar,
+                          timestamp: response.data.reaction.created_at
+                        }]
+                      }
                     : r
                 )
               }
@@ -250,7 +259,12 @@ export const useChatStore = create((set, get) => ({
                   {
                     emoji,
                     count: 1,
-                    users: [response.data.reaction]
+                    users: [{
+                      id: response.data.reaction.user_id,
+                      name: response.data.reaction.user_name,
+                      avatar: response.data.reaction.user_avatar,
+                      timestamp: response.data.reaction.created_at
+                    }]
                   }
                 ]
               }
