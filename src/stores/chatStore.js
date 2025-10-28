@@ -224,7 +224,6 @@ export const useChatStore = create((set, get) => ({
   addReaction: async (messageId, emoji) => {
     try {
       const response = await api.post('/reactions', { messageId, emoji })
-      console.log('Add reaction API response:', response.data)
       
       if (response.data.success) {
         // Update local state immediately for better UX
@@ -296,7 +295,6 @@ export const useChatStore = create((set, get) => ({
   removeReaction: async (messageId, emoji) => {
     try {
       const response = await api.delete(`/reactions?messageId=${messageId}&emoji=${emoji}`)
-      console.log('Remove reaction response:', response.data)
       
       if (response.data.success) {
         // Update local state
@@ -345,33 +343,22 @@ export const useChatStore = create((set, get) => ({
   },
 
   toggleReaction: async (messageId, emoji) => {
-    alert(`DEBUG: toggleReaction called with messageId=${messageId}, emoji=${emoji}`)
-    console.log('toggleReaction called:', { messageId, emoji })
     const { messages } = get()
     const message = messages.find(msg => msg.id === messageId)
     
     if (!message) {
-      alert('DEBUG: Message not found!')
       return { success: false, error: 'Message not found' }
     }
     
     const existingReaction = message.reactions?.find(r => r.emoji === emoji)
     const currentUserId = useAuthStore.getState().user?.id
     
-    console.log('toggleReaction - existingReaction:', existingReaction)
-    console.log('toggleReaction - currentUserId:', currentUserId)
-    
     // Check if current user already reacted with this emoji
     const userReacted = existingReaction?.users?.some(u => u.id === currentUserId)
-    console.log('toggleReaction - userReacted:', userReacted)
     
     if (userReacted) {
-      alert('DEBUG: Calling removeReaction')
-      console.log('toggleReaction - calling removeReaction')
       return await get().removeReaction(messageId, emoji)
     } else {
-      alert('DEBUG: Calling addReaction')
-      console.log('toggleReaction - calling addReaction')
       return await get().addReaction(messageId, emoji)
     }
   },
@@ -418,7 +405,6 @@ export const useChatStore = create((set, get) => ({
               }
             }
           } catch (error) {
-            console.log(`No reactions found for message ${message.id}`)
           }
           return {
             ...message,
@@ -435,7 +421,6 @@ export const useChatStore = create((set, get) => ({
 
   // Manual refresh function for reactions (called on user interaction)
   refreshReactionsOnDemand: async (roomId) => {
-    console.log('Manual reaction refresh requested for room:', roomId)
     await get().refreshReactions(roomId)
   },
 
@@ -447,11 +432,9 @@ export const useChatStore = create((set, get) => ({
       clearInterval(reactionPollingInterval)
     }
     
-    console.log('Starting reaction polling for room:', roomId)
     const interval = setInterval(() => {
       const { currentRoom } = get()
       if (currentRoom && currentRoom.id === roomId) {
-        console.log('Polling for reaction updates...')
         get().refreshReactions(roomId)
       }
     }, 30000) // Poll every 30 seconds for reactions (reduced frequency)
@@ -497,7 +480,6 @@ export const useChatStore = create((set, get) => ({
               }
             }
           } catch (error) {
-            console.log(`No reactions found for message ${message.id}`)
           }
           return {
             ...message,

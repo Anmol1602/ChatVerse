@@ -19,8 +19,6 @@ const ReactionDisplay = ({ reactions, onReactionClick, isOverlay = false, classN
         const users = reaction.users || [];
         const count = reaction.count || 0;
         
-        // Debug logging
-        console.log(`Reaction ${reaction.emoji}: count=${count}, users.length=${users.length}`);
         
         return (
           <motion.button
