@@ -13,6 +13,7 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
   const [showAddUser, setShowAddUser] = useState(false)
   const [showTransferAdmin, setShowTransferAdmin] = useState(false)
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const [memberToRemove, setMemberToRemove] = useState(null)
   const [roomInfo, setRoomInfo] = useState(null)
   const { 
@@ -65,6 +66,11 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
   }
 
   const handleRemoveMemberClick = (member) => {
+    // Prevent removing the admin
+    if (member.is_admin) {
+      alert('Cannot remove the admin from the group. Only the admin can remove themselves.')
+      return
+    }
     setMemberToRemove(member)
     setShowRemoveConfirm(true)
   }
@@ -82,8 +88,21 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
   }
 
   const handleLeaveGroup = async () => {
+    // If current user is admin, force them to transfer admin role first
+    if (isAdmin) {
+      alert('As an admin, you must transfer your admin role to another member before leaving the group.')
+      setShowTransferAdmin(true)
+      return
+    }
+    
+    // Show confirmation for non-admin members
+    setShowLeaveConfirm(true)
+  }
+
+  const confirmLeaveGroup = async () => {
     const result = await leaveRoom(roomId)
     if (result.success) {
+      setShowLeaveConfirm(false)
       onClose()
     }
   }
@@ -205,7 +224,7 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
 
                     <div className="flex items-center gap-1">
                       {/* Admin management buttons - only show for admin */}
-                      {isAdmin && !isCurrentUser(member.id) && (
+                      {isAdmin && !isCurrentUser(member.id) && !member.is_admin && (
                         <button
                           onClick={() => handleRemoveMemberClick(member)}
                           className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-colors"
@@ -220,7 +239,7 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
                         <button
                           onClick={handleLeaveGroup}
                           className="p-2 text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900 rounded-lg transition-colors"
-                          title="Leave group"
+                          title={isAdmin ? "Transfer admin role first" : "Leave group"}
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -251,6 +270,16 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
         message={`Are you sure you want to remove ${memberToRemove?.name} from this group?`}
         confirmText="Remove"
         type="danger"
+      />
+
+      <ConfirmationModal
+        isOpen={showLeaveConfirm}
+        onClose={() => setShowLeaveConfirm(false)}
+        onConfirm={confirmLeaveGroup}
+        title="Leave Group"
+        message="Are you sure you want to leave the group?"
+        confirmText="Leave"
+        type="warning"
       />
 
       <TransferAdminModal
