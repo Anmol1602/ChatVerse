@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { api } from '../utils/api'
 import toast from 'react-hot-toast'
+import { useAuthStore } from './authStore'
 
 export const useChatStore = create((set, get) => ({
   rooms: [],
@@ -355,7 +356,7 @@ export const useChatStore = create((set, get) => ({
     }
     
     const existingReaction = message.reactions?.find(r => r.emoji === emoji)
-    const currentUserId = JSON.parse(localStorage.getItem('user'))?.id
+    const currentUserId = useAuthStore.getState().user?.id
     
     console.log('toggleReaction - existingReaction:', existingReaction)
     console.log('toggleReaction - currentUserId:', currentUserId)
