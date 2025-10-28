@@ -66,11 +66,19 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
   }
 
   const handleRemoveMemberClick = (member) => {
-    // Prevent removing the admin
-    if (member.is_admin) {
-      alert('Cannot remove the admin from the group. Only the admin can remove themselves.')
+    // If current user is not admin → deny removal
+    if (!isAdmin) {
+      alert('Only admins can remove members.')
       return
     }
+
+    // Prevent removing another admin
+    if (member.is_admin) {
+      alert('You cannot remove another admin.')
+      return
+    }
+
+    // Admin removing normal member
     setMemberToRemove(member)
     setShowRemoveConfirm(true)
   }

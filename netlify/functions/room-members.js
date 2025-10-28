@@ -319,9 +319,11 @@ export async function handler(event, context) {
         };
       }
 
-      // Check if user to be removed is a member
+      // Check if user to be removed is a member and get their admin status
       const memberCheck = await sql`
-        SELECT user_id FROM room_members 
+        SELECT user_id, 
+               CASE WHEN user_id = ${roomCheck[0].admin_id} THEN true ELSE false END as is_admin
+        FROM room_members 
         WHERE room_id = ${roomId} AND user_id = ${userId}
       `;
 
@@ -333,6 +335,18 @@ export async function handler(event, context) {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({ error: 'User is not a member of this room' })
+        };
+      }
+
+      // Prevent removing another admin
+      if (memberCheck[0].is_admin) {
+        return {
+          statusCode: 403,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ error: 'You cannot remove another admin' })
         };
       }
 
