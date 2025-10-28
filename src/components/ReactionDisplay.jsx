@@ -4,6 +4,9 @@ import { motion } from 'framer-motion';
 const ReactionDisplay = ({ reactions, onReactionClick, isOverlay = false, className = "" }) => {
   // Add comprehensive null checks
   if (!reactions || !Array.isArray(reactions) || reactions.length === 0) return null;
+  
+  // Debug logging
+  console.log('ReactionDisplay - reactions data:', reactions);
 
   return (
     <motion.div

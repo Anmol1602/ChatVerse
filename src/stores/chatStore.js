@@ -224,6 +224,7 @@ export const useChatStore = create((set, get) => ({
     try {
       const response = await api.post('/reactions', { messageId, emoji })
       console.log('Add reaction response:', response.data)
+      console.log('Add reaction - messageId:', messageId, 'emoji:', emoji)
       
       if (response.data.success) {
         // Update local state immediately for better UX
