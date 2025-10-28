@@ -45,7 +45,7 @@ exports.handler = async (event, context) => {
 
     const token = authHeader.split(' ')[1]
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
-    const currentUserId = decoded.userId
+    const currentUserId = decoded.id
 
     // Get roomId from query parameters
     const { roomId } = event.queryStringParameters || {}
