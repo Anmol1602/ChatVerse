@@ -95,11 +95,13 @@ exports.handler = async (event, context) => {
       `
 
       if (otherMembers.length > 0) {
-        // Transfer admin role to another member
-        // Note: We can't update admin_id as it doesn't exist, so we'll just log this
-        console.log(`Admin ${currentUserId} leaving room ${roomId}, transferring to ${otherMembers[0].user_id}`)
-        // For now, we'll just remove the user without updating admin_id
-        // In a real implementation, you'd need to add an admin_id column to the rooms table
+        // Transfer admin role to another member by updating created_by
+        await sql`
+          UPDATE rooms 
+          SET created_by = ${otherMembers[0].user_id}, updated_at = NOW()
+          WHERE id = ${roomId}
+        `
+        console.log(`Admin ${currentUserId} leaving room ${roomId}, transferred admin role to ${otherMembers[0].user_id}`)
       } else {
         // If no other members, delete the room
         await sql`DELETE FROM rooms WHERE id = ${roomId}`

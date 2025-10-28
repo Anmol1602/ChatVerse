@@ -153,7 +153,7 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
               </button>
               
               {/* Admin-only buttons - only for groups */}
-              {isAdmin && roomInfo?.type === 'group' && (
+              {isAdmin && roomInfo?.type === 'group' ? (
                 <>
                   <button
                     onClick={handleTransferAdmin}
@@ -164,7 +164,11 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
                     Transfer Admin
                   </button>
                 </>
-              )}
+              ) : !isAdmin && roomInfo?.type === 'group' ? (
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  Only admins can manage group members
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -243,6 +247,13 @@ const RoomMembersModal = ({ isOpen, onClose, roomId }) => {
                         >
                           <X className="w-4 h-4" />
                         </button>
+                      )}
+                      
+                      {/* Show message for non-admin members about removal permissions */}
+                      {!isAdmin && !isCurrentUser(member.id) && (
+                        <div className="text-xs text-gray-400 dark:text-gray-500 px-2">
+                          Admin only
+                        </div>
                       )}
                       
                     </div>
