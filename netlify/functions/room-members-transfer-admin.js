@@ -44,10 +44,23 @@ exports.handler = async (event, context) => {
     }
 
     const token = authHeader.split(' ')[1]
-    const decoded = jwt.verify(token, process.env.JWT_SECRET)
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+      console.log('Transfer admin request - decoded token:', decoded)
+    } catch (error) {
+      console.error('Transfer admin - Token verification failed:', error);
+      return {
+        statusCode: 401,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ error: 'Invalid token' })
+      };
+    }
+    
     const currentUserId = decoded.id
-
-    console.log('Transfer admin request - decoded token:', decoded)
     console.log('Transfer admin request - currentUserId:', currentUserId)
 
     // Parse request body
