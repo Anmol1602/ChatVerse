@@ -478,6 +478,7 @@ export const useChatStore = create((set, get) => ({
         uniqueMessages.map(async (message) => {
           try {
             const reactionResponse = await api.get(`/reactions?messageId=${message.id}`)
+            console.log(`Reactions API response for message ${message.id}:`, reactionResponse.data)
             if (reactionResponse.data.success) {
               return {
                 ...message,
