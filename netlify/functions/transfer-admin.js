@@ -85,6 +85,10 @@ exports.handler = async (event, context) => {
     const roomCheck = await sql`
       SELECT created_by as admin_id FROM rooms WHERE id = ${roomId}
     `
+    
+    console.log('Transfer admin - roomCheck:', roomCheck)
+    console.log('Transfer admin - currentUserId:', currentUserId)
+    console.log('Transfer admin - admin_id from room:', roomCheck[0]?.admin_id)
 
     if (roomCheck.length === 0) {
       return {
@@ -98,7 +102,7 @@ exports.handler = async (event, context) => {
       }
     }
 
-    if (roomCheck[0].admin_id !== currentUserId) {
+    if (parseInt(roomCheck[0].admin_id) !== parseInt(currentUserId)) {
       return {
         statusCode: 403,
         headers: {
@@ -128,24 +132,39 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // Transfer admin role
-    await sql`
-      UPDATE rooms 
-      SET admin_id = ${newAdminId}, updated_at = NOW()
-      WHERE id = ${roomId}
-    `
+    try {
+      // Transfer admin role by updating created_by
+      await sql`
+        UPDATE rooms 
+        SET created_by = ${newAdminId}, updated_at = NOW()
+        WHERE id = ${roomId}
+      `
 
-    return {
-      statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      },
-      body: JSON.stringify({ 
-        success: true, 
-        message: 'Admin role transferred successfully' 
-      }),
+      return {
+        statusCode: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        },
+        body: JSON.stringify({ 
+          success: true, 
+          message: 'Admin role transferred successfully' 
+        }),
+      }
+    } catch (error) {
+      console.error('Transfer admin - Database error:', error)
+      return {
+        statusCode: 500,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          error: 'Database error during admin transfer',
+          details: error.message 
+        })
+      }
     }
 
   } catch (error) {
