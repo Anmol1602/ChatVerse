@@ -413,7 +413,16 @@ export const useChatStore = create((set, get) => ({
         })
       )
       
-      set({ messages: messagesWithReactions })
+      // Update only the messages for the current room, preserve other messages
+      set(state => ({
+        messages: state.messages.map(msg => {
+          if (msg.room_id === roomId) {
+            const updatedMessage = messagesWithReactions.find(m => m.id === msg.id)
+            return updatedMessage || msg
+          }
+          return msg
+        })
+      }))
     } catch (error) {
       console.error('Failed to refresh reactions:', error)
     }
